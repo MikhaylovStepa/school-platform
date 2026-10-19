@@ -1,0 +1,210 @@
+import re
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from typing import Optional
+import datetime
+from app.database import get_db
+from app.models import Topic, Task, TaskAttempt, User, StudentPresence
+from app.websocket_manager import manager
+
+router = APIRouter(prefix="/api/tasks", tags=["tasks"])
+
+class SubmitAnswerRequest(BaseModel):
+    user_id: int
+    task_id: int
+    submitted_answer: str
+    room_code: str
+
+def normalize_general_answer(ans: str) -> str:
+    s = ans.strip().lower()
+    s = s.replace("−", "-").replace("—", "-")
+    trans = str.maketrans({"а": "a", "в": "b", "с": "c", "д": "d", "х": "x"})
+    s = s.translate(trans)
+    s = s.replace(" ", "")
+    s = re.sub(r'(\d+),(\d+)', r'\1.\2', s)
+    if s.startswith("+"):
+        s = s[1:]
+    return s
+
+def check_answer_match(submitted: str, correct_spec: str) -> bool:
+    norm_sub = normalize_general_answer(submitted)
+    options = [opt.strip() for opt in correct_spec.split("|")]
+    
+    for opt in options:
+        norm_opt = normalize_general_answer(opt)
+        if norm_sub == norm_opt:
+            return True
+        # Check numeric equivalence with small tolerance
+        try:
+            sub_num_str = re.sub(r'[^\d\.\-]', '', norm_sub)
+            opt_num_str = re.sub(r'[^\d\.\-]', '', norm_opt)
+            if sub_num_str and opt_num_str:
+                sub_num = float(sub_num_str)
+                opt_num = float(opt_num_str)
+                if abs(sub_num - opt_num) < 0.06 or (opt_num != 0 and abs(sub_num - opt_num) / opt_num < 0.05):
+                    return True
+        except Exception:
+            pass
+        # Check numeric range (e.g. 320-335 or 190-200)
+        if "-" in opt and not opt.startswith("-"):
+            parts = opt.split("-")
+            if len(parts) == 2:
+                try:
+                    low = float(parts[0])
+                    high = float(parts[1])
+                    sub_val = float(re.sub(r'[^\d\.\-]', '', norm_sub))
+                    if low <= sub_val <= high:
+                        return True
+                except Exception:
+                    pass
+    return False
+
+@router.get("/topic/{room_code}")
+def get_topic_tasks(room_code: str, user_id: Optional[int] = None, db: Session = Depends(get_db)):
+    topic = db.query(Topic).filter_by(room_code=room_code).first()
+    if not topic:
+        raise HTTPException(status_code=404, detail="Тему не знайдено")
+    
+    tasks = db.query(Task).filter_by(topic_id=topic.id).order_by(Task.task_order).all()
+    
+    # If user_id is provided, get student's attempt state
+    attempts_map = {}
+    if user_id:
+        user_attempts = db.query(TaskAttempt).filter_by(user_id=user_id).filter(
+            TaskAttempt.task_id.in_([t.id for t in tasks])
+        ).order_by(TaskAttempt.created_at.asc()).all()
+
+        for a in user_attempts:
+            if a.task_id not in attempts_map:
+                attempts_map[a.task_id] = {
+                    "attempts_count": 0,
+                    "is_solved": False,
+                    "last_answer": "",
+                    "last_is_correct": False
+                }
+            attempts_map[a.task_id]["attempts_count"] += 1
+            attempts_map[a.task_id]["last_answer"] = a.submitted_answer
+            attempts_map[a.task_id]["last_is_correct"] = a.is_correct
+            if a.is_correct:
+                attempts_map[a.task_id]["is_solved"] = True
+
+    result_tasks = []
+    for t in tasks:
+        user_state = attempts_map.get(t.id, {
+            "attempts_count": 0,
+            "is_solved": False,
+            "last_answer": "",
+            "last_is_correct": False
+        })
+        result_tasks.append({
+            "id": t.id,
+            "task_order": t.task_order,
+            "question": t.question,
+            "task_type": t.task_type,
+            "hint": t.hint,
+            "media_url": t.media_url,
+            "options": t.options_json,
+            "attempts_count": user_state["attempts_count"],
+            "is_solved": user_state["is_solved"],
+            "last_answer": user_state["last_answer"],
+            "last_is_correct": user_state["last_is_correct"]
+        })
+
+    return {
+        "topic": {
+            "id": topic.id,
+            "name": topic.name,
+            "slug": topic.slug,
+            "room_code": topic.room_code,
+            "description": topic.description,
+            "theory_content": topic.theory_content,
+            "subject_name": topic.subject.name,
+            "grade_name": topic.subject.grade.name,
+            "total_tasks": len(tasks)
+        },
+        "tasks": result_tasks
+    }
+
+@router.post("/submit")
+async def submit_task_answer(req: SubmitAnswerRequest, db: Session = Depends(get_db)):
+    task = db.query(Task).filter_by(id=req.task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Завдання не знайдено")
+    
+    user = db.query(User).filter_by(id=req.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Користувача не знайдено")
+
+    raw_submitted = req.submitted_answer.strip()
+    is_correct = check_answer_match(raw_submitted, task.correct_answer)
+
+    # Previous attempt count
+    prev_attempts_count = db.query(TaskAttempt).filter_by(user_id=user.id, task_id=task.id).count()
+    attempt_num = prev_attempts_count + 1
+
+    attempt = TaskAttempt(
+        user_id=user.id,
+        task_id=task.id,
+        submitted_answer=raw_submitted,
+        is_correct=is_correct,
+        attempt_number=attempt_num
+    )
+    db.add(attempt)
+
+    # Update or create presence
+    presence = db.query(StudentPresence).filter_by(user_id=user.id, topic_id=task.topic_id).first()
+    if not presence:
+        presence = StudentPresence(
+            user_id=user.id,
+            topic_id=task.topic_id,
+            is_online=True,
+            is_tab_active=True,
+            current_task_id=task.id,
+            last_heartbeat=datetime.datetime.utcnow()
+        )
+        db.add(presence)
+    else:
+        presence.is_online = True
+        presence.current_task_id = task.id
+        presence.last_heartbeat = datetime.datetime.utcnow()
+        presence.updated_at = datetime.datetime.utcnow()
+
+    user.last_active_at = datetime.datetime.utcnow()
+    db.commit()
+
+    # Calculate student overall progress in this topic
+    total_tasks = db.query(Task).filter_by(topic_id=task.topic_id).count()
+    solved_count = db.query(TaskAttempt.task_id).filter(
+        TaskAttempt.user_id == user.id,
+        TaskAttempt.is_correct == True,
+        TaskAttempt.task_id.in_(db.query(Task.id).filter_by(topic_id=task.topic_id))
+    ).distinct().count()
+
+    # Broadcast to teachers in real-time
+    await manager.broadcast_to_room_teachers(req.room_code, "task_attempt", {
+        "user_id": user.id,
+        "student_name": user.name,
+        "task_id": task.id,
+        "task_order": task.task_order,
+        "submitted_answer": raw_submitted,
+        "is_correct": is_correct,
+        "attempt_number": attempt_num,
+        "solved_count": solved_count,
+        "total_tasks": total_tasks,
+        "timestamp": datetime.datetime.utcnow().isoformat()
+    })
+
+    if is_correct:
+        message = "Правильно! Відмінна робота! 🎉"
+    else:
+        message = "Неправильно. Зверни увагу на знаки та спробуй ще раз! 💡"
+
+    return {
+        "is_correct": is_correct,
+        "attempt_number": attempt_num,
+        "hint": task.hint if not is_correct else None,
+        "message": message,
+        "solved_count": solved_count,
+        "total_tasks": total_tasks
+    }

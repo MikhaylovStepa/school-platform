@@ -1,0 +1,929 @@
+{% extends "base.html" %}
+
+{% block title %}Урок та завдання | ШколаОнлайн{% endblock %}
+
+{% block head %}
+<!-- Markdown rendering for theory -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-4 sm:py-8">
+    <!-- Topic Top Header -->
+    <div class="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 shadow-sm mb-6">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <div class="flex items-center gap-2">
+                <a href="/hierarchy" class="p-2 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </a>
+                <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-brand-50 text-brand-700 border border-brand-200" id="topic-grade-subject">
+                    6 Клас • Математика
+                </span>
+                <span class="font-mono text-xs text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                    Кабінет: <span id="topic-room-code" class="font-bold">...</span>
+                </span>
+            </div>
+
+            <!-- Live Status Indicator -->
+            <div class="flex items-center gap-2 text-xs font-medium">
+                <span id="presence-indicator" class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>Вчитель бачить ваш прогрес</span>
+                </span>
+            </div>
+        </div>
+
+        <h1 id="topic-title" class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mb-2">
+            Завантаження теми...
+        </h1>
+        <p id="topic-desc" class="text-slate-600 text-xs sm:text-sm">
+            Будь ласка, зачекайте...
+        </p>
+
+        <!-- Overall Progress Bar -->
+        <div class="mt-4 pt-4 border-t border-slate-100">
+            <div class="flex justify-between items-center text-xs font-bold text-slate-700 mb-1.5">
+                <span>Прогрес виконання теми:</span>
+                <span id="progress-text">0 з 20 (0%)</span>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden border border-slate-200/60">
+                <div id="progress-bar-fill" class="bg-gradient-to-r from-brand-500 to-emerald-600 h-full rounded-full transition-all duration-500 ease-out" style="width: 0%"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mode Tabs: Practice vs Lab vs Theory -->
+    <div class="flex flex-wrap sm:flex-nowrap rounded-2xl bg-slate-200/80 p-1 mb-6 text-xs sm:text-sm font-bold gap-1">
+        <button id="tab-btn-practice" onclick="switchTab('practice')" class="flex-1 py-2.5 px-3 rounded-xl bg-white text-brand-700 shadow-sm transition flex items-center justify-center gap-1.5 sm:gap-2">
+            <i class="fa-solid fa-pen-to-square"></i>
+            <span>Завдання (<span id="tab-tasks-count">20</span>)</span>
+        </button>
+        <button id="tab-btn-lab" onclick="switchTab('lab')" class="flex-1 py-2.5 px-3 rounded-xl text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1.5 sm:gap-2">
+            <i class="fa-solid fa-flask"></i>
+            <span id="tab-lab-title">Практична лабораторія</span>
+        </button>
+        <button id="tab-btn-theory" onclick="switchTab('theory')" class="flex-1 py-2.5 px-3 rounded-xl text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1.5 sm:gap-2">
+            <i class="fa-solid fa-book-open"></i>
+            <span>Слайди та теорія</span>
+        </button>
+    </div>
+
+    <!-- TAB 1: THEORY & SLIDES -->
+    <div id="tab-theory-content" class="hidden space-y-6">
+        <!-- Interactive Slide Deck Viewer -->
+        <div id="slide-deck-viewer" class="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-indigo-500/20">
+            <div class="flex items-center justify-between pb-4 border-b border-white/10 mb-6">
+                <div class="flex items-center gap-2">
+                    <span class="px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 text-xs font-bold uppercase tracking-wider">
+                        <i class="fa-solid fa-chalkboard text-indigo-400 mr-1"></i> Слайди уроку
+                    </span>
+                    <span id="slide-counter-badge" class="font-mono text-xs text-slate-300 bg-white/10 px-2.5 py-1 rounded-full">
+                        Слайд 1 з 12
+                    </span>
+                </div>
+                <a id="slide-pptx-download-btn" href="/static/materials/8class/compress_archive01/Informatyka_8_Stysnennia_danykh_i_arkhivuvannia.pptx" download class="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold text-white transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-download"></i> Завантажити PPTX
+                </a>
+            </div>
+
+            <!-- Slide Content Canvas -->
+            <div id="active-slide-body" class="min-h-[280px] sm:min-h-[320px] flex flex-col justify-center py-4">
+                <!-- Injected via JavaScript -->
+            </div>
+
+            <!-- Slide Navigation Controls -->
+            <div class="flex items-center justify-between pt-6 border-t border-white/10 mt-6">
+                <button type="button" onclick="prevSlide()" id="slide-prev-btn" class="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-30 disabled:hover:bg-white/10 text-white text-xs sm:text-sm font-bold transition flex items-center gap-2">
+                    <i class="fa-solid fa-chevron-left"></i> Назад
+                </button>
+                <div id="slide-dots" class="flex gap-1.5 flex-wrap justify-center max-w-xs">
+                    <!-- Dots -->
+                </div>
+                <button type="button" onclick="nextSlide()" id="slide-next-btn" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 disabled:hover:bg-indigo-600 text-white text-xs sm:text-sm font-bold transition flex items-center gap-2">
+                    Вперед <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Full Theory Markdown -->
+        <div class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm prose prose-slate max-w-none">
+            <div id="theory-markdown-body" class="text-slate-700 text-sm sm:text-base leading-relaxed space-y-4">
+                <!-- Theory markdown rendered here -->
+            </div>
+            <div class="mt-8 pt-6 border-t border-slate-100 flex flex-wrap gap-3 justify-between items-center">
+                <button onclick="switchTab('lab')" class="py-3 px-5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs sm:text-sm transition flex items-center gap-2">
+                    <i class="fa-solid fa-flask text-indigo-600"></i>
+                    <span>Відкрити практичну лабораторію</span>
+                </button>
+                <button onclick="switchTab('practice')" class="py-3 px-6 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs sm:text-sm shadow-md transition flex items-center gap-2">
+                    <span>Перейти до завдань</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 2: INTERACTIVE LAB (8th & 9th Grade Support) -->
+    <div id="tab-lab-content" class="hidden space-y-6">
+        <!-- 8TH GRADE LAB CONTAINER -->
+        <div id="lab-8-content" class="space-y-6">
+            <!-- Lab Header & File Download Shelf -->
+            <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl font-black">
+                        <i class="fa-solid fa-flask-vial"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-black text-slate-900">Інтерактивна лабораторія стиснення (8 клас)</h2>
+                        <p class="text-xs text-slate-500">Досліджуйте файли практики, архівацію та візуальне стиснення фотографій</p>
+                    </div>
+                </div>
+
+                <!-- Practice Files Download Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-2">
+                    <a href="/static/materials/8class/compress_archive01/archive_lesson1.txt" download class="p-3.5 rounded-2xl bg-slate-50 hover:bg-brand-50 border border-slate-200 hover:border-brand-300 transition group flex items-start gap-3">
+                        <div class="text-2xl text-blue-600 group-hover:scale-110 transition"><i class="fa-solid fa-file-lines"></i></div>
+                        <div>
+                            <div class="text-xs font-bold text-slate-900 group-hover:text-brand-600">archive_lesson1.txt</div>
+                            <div class="text-[11px] text-slate-500">420 КБ • Текст для ZIP</div>
+                        </div>
+                    </a>
+                    <a href="/static/materials/8class/compress_archive01/franko-ivan-iakovych-farbovanyy-lys.docx" download class="p-3.5 rounded-2xl bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 transition group flex items-start gap-3">
+                        <div class="text-2xl text-indigo-600 group-hover:scale-110 transition"><i class="fa-solid fa-file-word"></i></div>
+                        <div>
+                            <div class="text-xs font-bold text-slate-900 group-hover:text-indigo-600">franko-...lys.docx</div>
+                            <div class="text-[11px] text-slate-500">24 КБ • Документ Word</div>
+                        </div>
+                    </a>
+                    <a href="/static/materials/8class/compress_archive01/vecteezy_background-of-pebbles-and-tree-branches_25771406.jpeg" download class="p-3.5 rounded-2xl bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 transition group flex items-start gap-3">
+                        <div class="text-2xl text-emerald-600 group-hover:scale-110 transition"><i class="fa-solid fa-file-image"></i></div>
+                        <div>
+                            <div class="text-xs font-bold text-slate-900 group-hover:text-emerald-600">vecteezy_...jpeg</div>
+                            <div class="text-[11px] text-slate-500">11.7 МБ • Оригінал фото</div>
+                        </div>
+                    </a>
+                    <a href="/static/materials/8class/compress_archive01/Informatyka_8_Stysnennia_danykh_i_arkhivuvannia.pptx" download class="p-3.5 rounded-2xl bg-slate-50 hover:bg-amber-50 border border-slate-200 hover:border-amber-300 transition group flex items-start gap-3">
+                        <div class="text-2xl text-amber-600 group-hover:scale-110 transition"><i class="fa-solid fa-file-powerpoint"></i></div>
+                        <div>
+                            <div class="text-xs font-bold text-slate-900 group-hover:text-amber-600">Презентація уроку</div>
+                            <div class="text-[11px] text-slate-500">51 КБ • Слайди PPTX</div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <!-- LAB WORKBENCH 1: TEXT ARCHIVER & RATIO CALCULATOR -->
+            <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm">
+                <div class="flex items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
+                    <div class="flex items-center gap-2">
+                        <span class="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center">1</span>
+                        <h3 class="text-lg font-bold text-slate-900">Експеримент 1: Архівування файлів (Стиснення без втрат)</h3>
+                    </div>
+                    <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                        ZIP / Deflate
+                    </span>
+                </div>
+
+                <p class="text-xs sm:text-sm text-slate-600 mb-4">
+                    Оберіть файл для архівації або натисніть кнопку розрахунку, щоб дослідити реальні розміри та коефіцієнт стиснення:
+                </p>
+
+                <div class="flex flex-wrap gap-2 mb-6">
+                    <button type="button" onclick="runTextArchiveExperiment('txt')" id="exp-btn-txt" class="py-2 px-4 rounded-xl bg-brand-600 text-white font-bold text-xs transition shadow-sm">
+                        📄 archive_lesson1.txt
+                    </button>
+                    <button type="button" onclick="runTextArchiveExperiment('docx')" id="exp-btn-docx" class="py-2 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition">
+                        📝 franko-...docx
+                    </button>
+                    <button type="button" onclick="runTextArchiveExperiment('jpeg_zip')" id="exp-btn-jpeg" class="py-2 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition">
+                        🖼️ vecteezy_...jpeg в ZIP
+                    </button>
+                </div>
+
+                <!-- Experiment Results Table -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-4">
+                    <div>
+                        <div class="text-[11px] font-bold uppercase text-slate-500">Початковий розмір:</div>
+                        <div id="lab-orig-size" class="text-base sm:text-lg font-black text-slate-900 font-mono">430 000 байт</div>
+                        <div id="lab-orig-kb" class="text-[11px] text-slate-500">(419.9 КБ)</div>
+                    </div>
+                    <div>
+                        <div class="text-[11px] font-bold uppercase text-slate-500">Розмір ZIP-архіву:</div>
+                        <div id="lab-zip-size" class="text-base sm:text-lg font-black text-indigo-600 font-mono">1 315 байт</div>
+                        <div id="lab-zip-kb" class="text-[11px] text-slate-500">(1.28 КБ)</div>
+                    </div>
+                    <div>
+                        <div class="text-[11px] font-bold uppercase text-slate-500">Зекономлено:</div>
+                        <div id="lab-saved-pct" class="text-base sm:text-lg font-black text-emerald-600 font-mono">99.7%</div>
+                        <div id="lab-saved-bytes" class="text-[11px] text-slate-500">-428 685 байт</div>
+                    </div>
+                    <div class="bg-indigo-50/60 p-2.5 rounded-xl border border-indigo-200">
+                        <div class="text-[11px] font-black uppercase text-indigo-900">Коефіцієнт (K):</div>
+                        <div id="lab-ratio-val" class="text-lg sm:text-2xl font-black text-indigo-700 font-mono">327.00×</div>
+                        <div class="text-[11px] text-indigo-600 font-semibold">зменшився у 327 разів</div>
+                    </div>
+                </div>
+
+                <div id="lab-exp-explanation" class="p-3.5 rounded-xl bg-blue-50/70 border border-blue-200 text-xs sm:text-sm text-blue-900">
+                    💡 <strong>Висновок:</strong> Текстовий файл містить багаторазове повторення однакових фраз («Інформатика - це цікаво»). Алгоритм Deflate описав ці повтори короткими посиланнями, зменшивши файл у <strong>327 разів</strong>!
+                </div>
+            </div>
+
+            <!-- LAB WORKBENCH 2: IMAGE COMPRESSION & VISUAL ARTIFACTS COMPARISON -->
+            <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm">
+                <div class="flex items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
+                    <div class="flex items-center gap-2">
+                        <span class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 font-bold text-xs flex items-center justify-center">2</span>
+                        <h3 class="text-lg font-bold text-slate-900">Експеримент 2: Візуальне стиснення фотографії (Стиснення з втратами)</h3>
+                    </div>
+                    <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        JPEG / Lossy
+                    </span>
+                </div>
+
+                <p class="text-xs sm:text-sm text-slate-600 mb-4">
+                    Стискайте зображення фотографії камінців різним ступенем якості та спостерігайте, як на оці з'являються артефакти стиснення і пікселізація деталей:
+                </p>
+
+                <!-- Quality Presets -->
+                <div class="flex flex-wrap items-center gap-2 mb-4">
+                    <span class="text-xs font-bold text-slate-500 mr-1">Швидкі пресети:</span>
+                    <button type="button" onclick="setImageQualityPreset(100)" class="img-preset-btn py-1.5 px-3 rounded-lg text-xs font-bold bg-slate-900 text-white" id="preset-100">
+                        💎 100% (Оригінал ~11.7 МБ)
+                    </button>
+                    <button type="button" onclick="setImageQualityPreset(15)" class="img-preset-btn py-1.5 px-3 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700" id="preset-15">
+                        🟡 15% (Помірне ~1.17 МБ • K ≈ 10x)
+                    </button>
+                    <button type="button" onclick="setImageQualityPreset(1)" class="img-preset-btn py-1.5 px-3 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700" id="preset-1">
+                        🔴 1% (Екстремальне ~60 КБ • K ≈ 195x)
+                    </button>
+                </div>
+
+                <!-- Image Comparison Viewer (Side-by-side on desktop, stacked on mobile) -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <!-- Left: Original Image Preview -->
+                    <div class="bg-slate-900 rounded-2xl p-3 border border-slate-700 overflow-hidden text-center text-white">
+                        <div class="flex justify-between items-center text-xs font-bold text-slate-300 mb-2 px-1">
+                            <span>Оригінальне фото (100% якість)</span>
+                            <span class="font-mono text-emerald-400">11 735 063 байт (11.74 МБ)</span>
+                        </div>
+                        <div class="relative rounded-xl overflow-hidden aspect-[4/3] bg-slate-950 flex items-center justify-center">
+                            <img src="/static/materials/8class/compress_archive01/preview_orig.jpg" alt="Оригінал" class="w-full h-full object-cover">
+                            <div class="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/70 text-[10px] font-bold text-white">
+                                Чіткі камінці та текстура
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Compressed Image Preview -->
+                    <div class="bg-slate-900 rounded-2xl p-3 border border-slate-700 overflow-hidden text-center text-white">
+                        <div class="flex justify-between items-center text-xs font-bold text-slate-300 mb-2 px-1">
+                            <span id="img-comp-label">Стиснене фото (якість 15%)</span>
+                            <span id="img-comp-size-badge" class="font-mono text-amber-400">1 173 500 байт (1.17 МБ)</span>
+                        </div>
+                        <div class="relative rounded-xl overflow-hidden aspect-[4/3] bg-slate-950 flex items-center justify-center">
+                            <img id="compressed-preview-img" src="/static/materials/8class/compress_archive01/preview_low_quality.jpg" alt="Стиснене фото" class="w-full h-full object-cover">
+                            <div id="img-artifacts-badge" class="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-rose-600/90 text-[10px] font-bold text-white">
+                                Помітні артефакти та розмиття
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats Bar for Image Compression -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-emerald-50/60 p-4 rounded-2xl border border-emerald-200">
+                    <div>
+                        <div class="text-[11px] font-bold uppercase text-emerald-800">Початковий обсяг:</div>
+                        <div class="text-base sm:text-lg font-black text-slate-900 font-mono">11.74 МБ</div>
+                    </div>
+                    <div>
+                        <div class="text-[11px] font-bold uppercase text-emerald-800">Стиснений обсяг:</div>
+                        <div id="img-metric-size" class="text-base sm:text-lg font-black text-slate-900 font-mono">1.17 МБ</div>
+                    </div>
+                    <div>
+                        <div class="text-[11px] font-bold uppercase text-emerald-800">Економія пам'яті:</div>
+                        <div id="img-metric-saved" class="text-base sm:text-lg font-black text-emerald-700 font-mono">90.0%</div>
+                    </div>
+                    <div class="bg-emerald-600 text-white p-2.5 rounded-xl shadow-sm">
+                        <div class="text-[11px] font-black uppercase text-emerald-100">У скільки разів менше (K):</div>
+                        <div id="img-metric-ratio" class="text-lg sm:text-2xl font-black font-mono">10.0×</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 8TH GRADE LAB CONTAINER: ARCHIVE OPERATIONS -->
+        <div id="lab-8-archives-content" class="space-y-6 hidden">
+            <!-- Lab Header & Direct Files Download Shelf -->
+            <div class="bg-gradient-to-br from-cyan-950 via-slate-900 to-blue-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-cyan-400/20">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-white/10">
+                    <div>
+                        <span class="px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-200 text-[11px] font-bold uppercase tracking-wider">Практична робота • 8 клас</span>
+                        <h2 class="text-xl sm:text-2xl font-black mt-3">Операції з архівами даних</h2>
+                        <p class="text-sm text-slate-300 mt-2">Завантажте всі вихідні файли, дослідіть та розпакуйте ZIP-архів, створіть новий архів (7-Zip / WinRAR / засоби ОС).</p>
+                    </div>
+                    <div class="shrink-0 px-4 py-3 rounded-2xl bg-white/10 border border-white/10 text-center">
+                        <div class="text-2xl font-black text-cyan-300">5 файлів</div>
+                        <div class="text-[11px] text-slate-300">1 архів + 4 окремих файли</div>
+                    </div>
+                </div>
+
+                <!-- 5 Files Cards Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-5">
+                    <a href="/static/materials/8class/operation_with_archives/compress_archive01.zip" download class="p-4 rounded-2xl bg-white/10 hover:bg-white/20 border border-cyan-400/30 transition flex gap-3 group">
+                        <i class="fa-solid fa-file-zipper text-2xl text-cyan-300 group-hover:scale-110 transition"></i>
+                        <div>
+                            <div class="text-sm font-bold text-white">compress_archive01.zip</div>
+                            <div class="text-xs text-slate-300">11.7 МБ • Стиснений архів для розархівації</div>
+                        </div>
+                    </a>
+                    <a href="/static/materials/8class/operation_with_archives/6711626.png" download class="p-4 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 transition flex gap-3 group">
+                        <i class="fa-solid fa-file-image text-2xl text-amber-300 group-hover:scale-110 transition"></i>
+                        <div>
+                            <div class="text-sm font-bold text-white">6711626.png</div>
+                            <div class="text-xs text-slate-300">4.4 КБ • Графічний файл (малюнок)</div>
+                        </div>
+                    </a>
+                    <a href="/static/materials/8class/operation_with_archives/742940.png" download class="p-4 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 transition flex gap-3 group">
+                        <i class="fa-solid fa-file-image text-2xl text-amber-300 group-hover:scale-110 transition"></i>
+                        <div>
+                            <div class="text-sm font-bold text-white">742940.png</div>
+                            <div class="text-xs text-slate-300">5.2 КБ • Графічний файл (малюнок)</div>
+                        </div>
+                    </a>
+                    <a href="/static/materials/8class/operation_with_archives/franko-ivan-iakovych-kameniari647.docx" download class="p-4 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 transition flex gap-3 group">
+                        <i class="fa-solid fa-file-word text-2xl text-indigo-300 group-hover:scale-110 transition"></i>
+                        <div>
+                            <div class="text-sm font-bold text-white">Каменярі.docx</div>
+                            <div class="text-xs text-slate-300">9.5 КБ • Текстовий документ (вірш)</div>
+                        </div>
+                    </a>
+                    <a href="/static/materials/8class/operation_with_archives/тексти%20з%20малюнками.docx" download class="p-4 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 transition flex gap-3 group md:col-span-2 lg:col-span-2">
+                        <i class="fa-solid fa-file-lines text-2xl text-emerald-300 group-hover:scale-110 transition"></i>
+                        <div>
+                            <div class="text-sm font-bold text-white">тексти з малюнками.docx</div>
+                            <div class="text-xs text-slate-300">16.3 МБ • Комплексний документ із текстом та ілюстраціями</div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Practical Steps Overview -->
+            <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm">
+                <h3 class="text-lg font-black text-slate-900 mb-5 flex items-center gap-2"><i class="fa-solid fa-list-ol text-cyan-700"></i> План практичної роботи</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                    <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                        <strong class="block text-sm text-slate-900 mb-2">1. Завантажте файли</strong>Створіть робочу папку та збережіть туди всі 5 файлів.
+                    </div>
+                    <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                        <strong class="block text-sm text-slate-900 mb-2">2. Дослідіть архів</strong>Перегляньте вміст <code>compress_archive01.zip</code> та розпакуйте його.
+                    </div>
+                    <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                        <strong class="block text-sm text-slate-900 mb-2">3. Створіть новий архів</strong>Виділіть інші 4 файли та запакуйте їх в один спільний архів. А також запакуйте окремо кожен з файлів.
+                    </div>
+                    <div class="p-4 rounded-2xl bg-cyan-50 border border-cyan-200">
+                        <strong class="block text-sm text-cyan-950 mb-2">4. Звіт і тести</strong>Порівняйте розміри та дайте відповіді на контрольні запитання.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Archiving Software Guidelines Cards -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
+                    <h3 class="font-black text-slate-900 mb-3 flex items-center gap-2"><span class="text-cyan-700">👀</span> Переглянути вміст ZIP</h3>
+                    <ol class="list-decimal pl-5 space-y-2 text-xs text-slate-700">
+                        <li>Відкрийте <strong>compress_archive01.zip</strong> подвійним кліком миші або через архіватор.</li>
+                        <li>Зверніть увагу на перелік 4 файлів усередині та їх розміри (початковий і стиснений).</li>
+                        <li>Не редагуйте файли безпосередньо в нерозархівованій папці.</li>
+                    </ol>
+                </div>
+                <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
+                    <h3 class="font-black text-slate-900 mb-3 flex items-center gap-2"><span class="text-emerald-700">📂</span> Розархівувати (Extract)</h3>
+                    <ol class="list-decimal pl-5 space-y-2 text-xs text-slate-700">
+                        <li>Клікніть правою кнопкою миші на <strong>compress_archive01.zip</strong>.</li>
+                        <li>Оберіть <strong>7-Zip</strong> або <strong>WinRAR</strong> ➔ <em>«Видобути до compress_archive01/»</em>.</li>
+                        <li>Переконайтеся, що всі 4 файли з'явилися у папці та успішно відкриваються.</li>
+                    </ol>
+                </div>
+                <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
+                    <h3 class="font-black text-slate-900 mb-3 flex items-center gap-2"><span class="text-indigo-700">📦</span> Створити новий архів</h3>
+                    <ol class="list-decimal pl-5 space-y-2 text-xs text-slate-700">
+                        <li>Виділіть решту 4 файли (2 зображення .png та 2 документи .docx).</li>
+                        <li>Клікніть правою кнопкою ➔ <strong>7-Zip / WinRAR</strong> ➔ <em>«Додати до архіву...»</em> (або <em>«Надіслати ➔ Стиснута ZIP-папка»</em>).</li>
+                        <li>Задайте назву архіву: <code>Мій_Архів_Прізвище.zip</code> (або .7z/.rar).</li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- Measurements & Compression Comparison Form -->
+            <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm">
+                <div class="mb-5">
+                    <h3 class="text-lg font-black text-slate-900">Таблиця розмірів та аналіз стиснення</h3>
+                    <p class="text-xs text-slate-500 mt-1">Введіть розміри початкових файлів та отриманого архіву. Можна вказувати одиниці вимірювання (байти, КБ, МБ).</p>
+                </div>
+                <form id="archive-sizes-form" onsubmit="handleArchiveSizesForm(event)" class="space-y-4">
+                    <div class="overflow-x-auto">
+                        <table class="w-full min-w-[720px] text-xs text-left">
+                            <thead>
+                                <tr class="bg-slate-100 text-slate-800">
+                                    <th class="p-3 rounded-l-xl">Об’єкт / Файл</th>
+                                    <th class="p-3">Початковий розмір</th>
+                                    <th class="p-3">Розмір після архівації</th>
+                                    <th class="p-3">Економія (%)</th>
+                                    <th class="p-3 rounded-r-xl">Коефіцієнт стиснення (K)</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <tr>
+                                    <td class="p-3 font-bold text-cyan-800">6711626.png (Зображення 1)</td>
+                                    <td class="p-2"><input id="archive-original-img1" required value="4.38 КБ" class="w-full p-2 rounded-lg border border-slate-300"></td>
+                                    <td class="p-2"><input id="archive-zip-img1" required placeholder="напр. 4.3 КБ" value="4.3 КБ" class="w-full p-2 rounded-lg border border-slate-300"></td>
+                                    <td id="archive-saving-img1" class="p-3 font-bold">—</td>
+                                    <td id="archive-ratio-img1" class="p-3 font-bold">—</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-3 font-bold text-cyan-800">742940.png (Зображення 2)</td>
+                                    <td class="p-2"><input id="archive-original-img2" required value="5.2 КБ" class="w-full p-2 rounded-lg border border-slate-300"></td>
+                                    <td class="p-2"><input id="archive-zip-img2" required placeholder="напр. 5.1 КБ" value="5.1 КБ" class="w-full p-2 rounded-lg border border-slate-300"></td>
+                                    <td id="archive-saving-img2" class="p-3 font-bold">—</td>
+                                    <td id="archive-ratio-img2" class="p-3 font-bold">—</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-3 font-bold text-indigo-800">Каменярі.docx (Текстовий документ)</td>
+                                    <td class="p-2"><input id="archive-original-kameniari" required value="9.5 КБ" class="w-full p-2 rounded-lg border border-slate-300"></td>
+                                    <td class="p-2"><input id="archive-zip-kameniari" required placeholder="напр. 8.5 КБ" value="8.5 КБ" class="w-full p-2 rounded-lg border border-slate-300"></td>
+                                    <td id="archive-saving-kameniari" class="p-3 font-bold">—</td>
+                                    <td id="archive-ratio-kameniari" class="p-3 font-bold">—</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-3 font-bold text-emerald-800">тексти з малюнками.docx</td>
+                                    <td class="p-2"><input id="archive-original-texts" required value="16.32 МБ" class="w-full p-2 rounded-lg border border-slate-300"></td>
+                                    <td class="p-2"><input id="archive-zip-texts" required placeholder="напр. 16.2 МБ" value="16.2 МБ" class="w-full p-2 rounded-lg border border-slate-300"></td>
+                                    <td id="archive-saving-texts" class="p-3 font-bold">—</td>
+                                    <td id="archive-ratio-texts" class="p-3 font-bold">—</td>
+                                </tr>
+                                <tr class="bg-cyan-50/50">
+                                    <td class="p-3 font-bold text-slate-900">Спільний створений архів (4 файли)</td>
+                                    <td class="p-2"><input id="archive-original-all" required value="16.33 МБ" class="w-full p-2 rounded-lg border border-slate-300"></td>
+                                    <td class="p-2"><input id="archive-zip-all" required placeholder="розмір створеного архіву (напр. 16.2 МБ)" value="16.2 МБ" class="w-full p-2 rounded-lg border border-slate-300"></td>
+                                    <td id="archive-saving-all" class="p-3 font-bold">—</td>
+                                    <td id="archive-ratio-all" class="p-3 font-bold">—</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <button type="submit" class="py-3 px-6 rounded-xl bg-cyan-700 hover:bg-cyan-800 text-white font-bold text-sm transition shadow-sm"><i class="fa-solid fa-chart-column mr-2"></i>Розрахувати показники стиснення</button>
+                    <div id="archive-sizes-feedback" class="hidden" role="status" aria-live="polite"></div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 9TH GRADE LAB CONTAINER: TEXT FORMATS & GOOGLE DOCS -->
+        <div id="lab-9-content" class="space-y-6 hidden">
+            <!-- Lab Header & Direct Google Docs Link Shelf -->
+            <div class="bg-gradient-to-br from-indigo-900 via-slate-900 to-indigo-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-indigo-400/20">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-white/10">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-2xl bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 flex items-center justify-center text-2xl font-black">
+                            <i class="fa-solid fa-file-signature"></i>
+                        </div>
+                        <div>
+                            <span class="px-3 py-0.5 rounded-full bg-indigo-500/30 text-indigo-300 text-[11px] font-bold uppercase tracking-wider">
+                                Практикум • 9 клас
+                            </span>
+                            <h2 class="text-xl sm:text-2xl font-black text-white mt-1">Формати текстових документів & Google Docs</h2>
+                        </div>
+                    </div>
+                    
+                    <!-- Shared Google Doc Big Button -->
+                    <a href="https://docs.google.com/document/d/1s-QvJ74JqI3qunfwcdKrfA5jNia4RnxBip7eElOfZ1s/edit?usp=sharing" target="_blank" rel="noopener noreferrer"
+                       class="inline-flex items-center justify-center gap-2.5 py-3.5 px-6 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-sm sm:text-base shadow-lg shadow-emerald-500/30 active:scale-[0.98] transition">
+                        <i class="fa-brands fa-google-drive text-lg"></i>
+                        <span>Відкрити спільний Google Документ</span>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-xs ml-1"></i>
+                    </a>
+                </div>
+
+                <!-- Practice Files Download Shelf -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-6">
+                    <a href="/static/materials/9class/text_formats/тексти%20з%20малюнками.docx" download class="p-4 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 transition group flex items-start gap-3">
+                        <div class="text-3xl text-indigo-400 group-hover:scale-110 transition"><i class="fa-solid fa-file-word"></i></div>
+                        <div>
+                            <div class="text-sm font-bold text-white group-hover:text-indigo-300">тексти з малюнками.docx</div>
+                            <div class="text-xs text-slate-300">12.8 МБ • Містить текст та 110 малюнків для завантаження в Google Docs</div>
+                        </div>
+                    </a>
+                    <a href="/static/materials/9class/text_formats/Informatyka_9_Formaty_faіliv_Rezhymy_Google_Docs_v2.pptx" download class="p-4 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 transition group flex items-start gap-3">
+                        <div class="text-3xl text-amber-400 group-hover:scale-110 transition"><i class="fa-solid fa-file-powerpoint"></i></div>
+                        <div>
+                            <div class="text-sm font-bold text-white group-hover:text-amber-300">Презентація уроку (PPTX)</div>
+                            <div class="text-xs text-slate-300">53 КБ • 13 слайдів з теорією та правилами спільної роботи</div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <!-- STEP-BY-STEP PRACTICAL PLAN CARDS -->
+            <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm">
+                <div class="flex items-center gap-2 mb-6 pb-3 border-b border-slate-100">
+                    <div class="w-8 h-8 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center font-black text-sm">
+                        <i class="fa-solid fa-list-check"></i>
+                    </div>
+                    <h3 class="text-lg sm:text-xl font-black text-slate-900">Покроковий план виконання практичної роботи</h3>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Step 1 -->
+                    <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 hover:border-brand-300 transition">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="w-6 h-6 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center">1</span>
+                            <span class="text-xs font-bold uppercase text-slate-500">Завантаження файлу</span>
+                        </div>
+                        <h4 class="font-bold text-slate-900 text-sm mb-1">Скачати вихідний документ</h4>
+                        <p class="text-xs text-slate-600">Завантажте файл <code class="bg-slate-200 px-1 py-0.5 rounded text-[11px]">тексти з малюнками.docx</code> (12.8 МБ) на свій комп'ютер чи телефон.</p>
+                    </div>
+
+                    <!-- Step 2 -->
+                    <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 hover:border-brand-300 transition">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="w-6 h-6 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center">2</span>
+                            <span class="text-xs font-bold uppercase text-slate-500">Google Диск</span>
+                        </div>
+                        <h4 class="font-bold text-slate-900 text-sm mb-1">Завантажити в Google Docs</h4>
+                        <p class="text-xs text-slate-600">Відкрийте Google Документи у веббраузері та завантажте скачаний docx-файл.</p>
+                    </div>
+
+                    <!-- Step 3 -->
+                    <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 hover:border-brand-300 transition">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="w-6 h-6 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center">3</span>
+                            <span class="text-xs font-bold uppercase text-slate-500">Експорт форматів</span>
+                        </div>
+                        <h4 class="font-bold text-slate-900 text-sm mb-1">Вивантажити в 5 форматах</h4>
+                        <p class="text-xs text-slate-600">Через <em>Файл ➔ Завантажити</em> збережіть документ у 5 форматах: <strong>.txt, .odt, .docx, .pdf, .rtf</strong>.</p>
+                    </div>
+
+                    <!-- Step 4 -->
+                    <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 hover:border-brand-300 transition">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="w-6 h-6 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center">4</span>
+                            <span class="text-xs font-bold uppercase text-slate-500">Огляд вмісту</span>
+                        </div>
+                        <h4 class="font-bold text-slate-900 text-sm mb-1">Роздивитись кожен файл</h4>
+                        <p class="text-xs text-slate-600">Перевірте, де збереглися малюнки та кольори, а де залишився лише чистий текст без форматування.</p>
+                    </div>
+
+                    <!-- Step 5 -->
+                    <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 hover:border-brand-300 transition">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="w-6 h-6 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center">5</span>
+                            <span class="text-xs font-bold uppercase text-slate-500">Розміри файлів</span>
+                        </div>
+                        <h4 class="font-bold text-slate-900 text-sm mb-1">Заповнити форму розмірів</h4>
+                        <p class="text-xs text-slate-600">Перевірте розмір кожного файлу у властивостях та внесіть у форму дослідження нижче.</p>
+                    </div>
+
+                    <!-- Step 6 -->
+                    <div class="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200 hover:border-indigo-400 transition">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="w-6 h-6 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center">6</span>
+                            <span class="text-xs font-bold uppercase text-indigo-700">Спільна робота</span>
+                        </div>
+                        <h4 class="font-bold text-indigo-950 text-sm mb-1">Спільний Google Документ</h4>
+                        <p class="text-xs text-indigo-900">Перейдіть за спільним посиланням, спробуйте залишити коментар та запропонувати правку тексту.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- INTERACTIVE FILE SIZES MEASUREMENT & BENCHMARK FORM -->
+            <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm">
+                <div class="flex items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
+                    <div class="flex items-center gap-2">
+                        <span class="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 font-bold text-sm flex items-center justify-center">
+                            <i class="fa-solid fa-table-list"></i>
+                        </span>
+                        <div>
+                            <h3 class="text-lg font-black text-slate-900">Дослідження розмірів 5 форматів файлів</h3>
+                            <p class="text-xs text-slate-500">Введіть отримані розміри файлів після вивантаження з Google Docs:</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Inputs Grid -->
+                <form id="file-formats-size-form" onsubmit="handleFormatsSizeForm(event)" class="space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+                        <!-- TXT -->
+                        <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
+                            <div class="flex items-center gap-1.5 font-bold text-xs text-slate-700 mb-2">
+                                <i class="fa-solid fa-file-lines text-blue-600"></i>
+                                <span>.txt (Текст)</span>
+                            </div>
+                            <div class="relative">
+                                <input type="text" id="size-input-txt" inputmode="decimal" required placeholder="напр. 8.2 КБ" class="w-full text-center font-bold text-sm py-2 px-3 rounded-xl border border-slate-300 focus:border-brand-500 outline-none">
+                            </div>
+                            <div class="text-[10px] text-slate-500 mt-1.5 text-center">лише голий текст</div>
+                        </div>
+
+                        <!-- ODT -->
+                        <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
+                            <div class="flex items-center gap-1.5 font-bold text-xs text-slate-700 mb-2">
+                                <i class="fa-solid fa-file text-emerald-600"></i>
+                                <span>.odt (OpenDoc)</span>
+                            </div>
+                            <div class="relative">
+                                <input type="text" id="size-input-odt" inputmode="decimal" required placeholder="напр. 12.8 МБ" class="w-full text-center font-bold text-sm py-2 px-3 rounded-xl border border-slate-300 focus:border-brand-500 outline-none">
+                            </div>
+                            <div class="text-[10px] text-slate-500 mt-1.5 text-center">відкритий ZIP-пакет</div>
+                        </div>
+
+                        <!-- DOCX -->
+                        <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
+                            <div class="flex items-center gap-1.5 font-bold text-xs text-slate-700 mb-2">
+                                <i class="fa-solid fa-file-word text-indigo-600"></i>
+                                <span>.docx (MS Word)</span>
+                            </div>
+                            <div class="relative">
+                                <input type="text" id="size-input-docx" inputmode="decimal" required placeholder="напр. 12.8 МБ" class="w-full text-center font-bold text-sm py-2 px-3 rounded-xl border border-slate-300 focus:border-brand-500 outline-none">
+                            </div>
+                            <div class="text-[10px] text-slate-500 mt-1.5 text-center">стиснений ZIP/XML</div>
+                        </div>
+
+                        <!-- PDF -->
+                        <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
+                            <div class="flex items-center gap-1.5 font-bold text-xs text-slate-700 mb-2">
+                                <i class="fa-solid fa-file-pdf text-rose-600"></i>
+                                <span>.pdf (Документ)</span>
+                            </div>
+                            <div class="relative">
+                                <input type="text" id="size-input-pdf" inputmode="decimal" required placeholder="напр. 14.5 МБ" class="w-full text-center font-bold text-sm py-2 px-3 rounded-xl border border-slate-300 focus:border-brand-500 outline-none">
+                            </div>
+                            <div class="text-[10px] text-slate-500 mt-1.5 text-center">фіксований макет</div>
+                        </div>
+
+                        <!-- RTF -->
+                        <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
+                            <div class="flex items-center gap-1.5 font-bold text-xs text-slate-700 mb-2">
+                                <i class="fa-solid fa-file-lines text-amber-600"></i>
+                                <span>.rtf (Rich Text)</span>
+                            </div>
+                            <div class="relative">
+                                <input type="text" id="size-input-rtf" inputmode="decimal" required placeholder="напр. 135 МБ" class="w-full text-center font-bold text-sm py-2 px-3 rounded-xl border border-slate-300 focus:border-brand-500 outline-none">
+                            </div>
+                            <div class="text-[10px] text-slate-500 mt-1.5 text-center">нестиснений hex</div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-3 pt-2">
+                        <button type="submit" class="py-3 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm shadow-md transition flex items-center gap-2">
+                            <i class="fa-solid fa-calculator"></i>
+                            <span>Порівняти та перевірити аналіз</span>
+                        </button>
+                        <button type="button" onclick="fillExampleFormatsSizes()" class="py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition">
+                            Заповнити еталонні вимірювання
+                        </button>
+                    </div>
+                    <div id="formats-form-feedback" class="hidden" role="status" aria-live="polite"></div>
+                </form>
+
+                <!-- Comparison Analysis Table (Dynamic) -->
+                <div id="formats-analysis-result" class="mt-6 pt-6 border-t border-slate-100">
+                    <h4 class="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-simple text-indigo-600"></i>
+                        <span>Порівняльна таблиця характеристик форматів:</span>
+                    </h4>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs text-slate-700 border-collapse">
+                            <thead>
+                                <tr class="bg-slate-100 text-slate-900 font-bold border-b border-slate-200">
+                                    <th class="p-3 rounded-l-xl">Формат</th>
+                                    <th class="p-3">Розмір файлу</th>
+                                    <th class="p-3">Малюнки (110 шт)</th>
+                                    <th class="p-3">Оформлення</th>
+                                    <th class="p-3 rounded-r-xl">Головне призначення</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 font-medium">
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-3 font-bold text-blue-600">.txt (Text)</td>
+                                    <td id="measured-size-txt" class="p-3 font-mono font-bold text-emerald-600">ще не введено</td>
+                                    <td class="p-3 text-rose-600 font-semibold">❌ Видалено</td>
+                                    <td class="p-3 text-rose-600 font-semibold">❌ Відсутнє</td>
+                                    <td class="p-3 text-slate-600">Універсальний простий текст, мінімальний обсяг</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-3 font-bold text-emerald-700">.odt (OpenDoc)</td>
+                                    <td id="measured-size-odt" class="p-3 font-mono font-bold">ще не введено</td>
+                                    <td class="p-3 text-emerald-600 font-semibold">✅ Збережено</td>
+                                    <td class="p-3 text-emerald-600 font-semibold">✅ Повне</td>
+                                    <td class="p-3 text-slate-600">Відкритий формат (LibreOffice Writer, OpenOffice)</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-3 font-bold text-indigo-700">.docx (MS Word)</td>
+                                    <td id="measured-size-docx" class="p-3 font-mono font-bold">ще не введено</td>
+                                    <td class="p-3 text-emerald-600 font-semibold">✅ Збережено</td>
+                                    <td class="p-3 text-emerald-600 font-semibold">✅ Повне</td>
+                                    <td class="p-3 text-slate-600">Подальше редагування у MS Word та Google Docs</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-3 font-bold text-rose-700">.pdf (PDF)</td>
+                                    <td id="measured-size-pdf" class="p-3 font-mono font-bold">ще не введено</td>
+                                    <td class="p-3 text-emerald-600 font-semibold">✅ Збережено</td>
+                                    <td class="p-3 text-emerald-600 font-semibold">✅ Фіксоване</td>
+                                    <td class="p-3 text-slate-600">Друк, передача вчителю, незмінний вигляд сторінок</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-3 font-bold text-amber-700">.rtf (Rich Text)</td>
+                                    <td id="measured-size-rtf" class="p-3 font-mono font-bold text-rose-600">ще не введено</td>
+                                    <td class="p-3 text-amber-600 font-semibold">⚠️ Hex-код</td>
+                                    <td class="p-3 text-emerald-600 font-semibold">✅ Базове</td>
+                                    <td class="p-3 text-slate-600">Сумісність між різними ОС (не рекомендується для графіки)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GOOGLE DOCS MODES & ROLES COLLABORATION GUIDE -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Modes Card -->
+                <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
+                    <h3 class="text-base sm:text-lg font-black text-slate-900 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-indigo-600"></i>
+                        <span>Три режими роботи в Google Документах</span>
+                    </h3>
+                    <div class="space-y-3">
+                        <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+                            <div class="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                                <span class="text-indigo-600">✏️</span> Режим «Редагування» (Editing)
+                            </div>
+                            <p class="text-xs text-slate-600 mt-1">Зміни безпосередньо застосовуються до тексту документа. Підходить для створення власного матеріалу.</p>
+                        </div>
+                        <div class="p-3 rounded-2xl bg-indigo-50/70 border border-indigo-200">
+                            <div class="font-bold text-xs text-indigo-950 flex items-center gap-1.5">
+                                <span class="text-indigo-600">💬</span> Режим «Пропонування» (Suggesting)
+                            </div>
+                            <p class="text-xs text-indigo-900 mt-1">Правки показуються як пропозиції на полях. Автор може затвердити (✓) або відхилити (✕) кожне виправлення.</p>
+                        </div>
+                        <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+                            <div class="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                                <span class="text-indigo-600">👁️</span> Режим «Перегляд» (Viewing)
+                            </div>
+                            <p class="text-xs text-slate-600 mt-1">Тільки читання та друк без ризику випадково змінити чи стерти текст.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Roles & Version History Card -->
+                <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-base sm:text-lg font-black text-slate-900 mb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-users text-emerald-600"></i>
+                            <span>Права доступу та Історія версій</span>
+                        </h3>
+                        <div class="space-y-2.5">
+                            <div class="flex items-start gap-2 text-xs text-slate-700">
+                                <span class="px-2 py-0.5 rounded-lg bg-slate-100 font-bold text-slate-800">Читач</span>
+                                <span>Може лише переглядати документ онлайн.</span>
+                            </div>
+                            <div class="flex items-start gap-2 text-xs text-slate-700">
+                                <span class="px-2 py-0.5 rounded-lg bg-blue-100 font-bold text-blue-800">Коментатор</span>
+                                <span>Може переглядати, залишати коментарі та пропонувати зміни.</span>
+                            </div>
+                            <div class="flex items-start gap-2 text-xs text-slate-700">
+                                <span class="px-2 py-0.5 rounded-lg bg-emerald-100 font-bold text-emerald-800">Редактор</span>
+                                <span>Має повний доступ для редагування та форматування.</span>
+                            </div>
+                            <div class="p-3 mt-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-950">
+                                🕒 <strong>Історія версій:</strong> у меню <em>«Файл ➔ Історія версій»</em> завжди можна побачити правки всіх учнів та повернутися до будь-якої точки в минулому!
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-4 border-t border-slate-100">
+                        <a href="https://docs.google.com/document/d/1s-QvJ74JqI3qunfwcdKrfA5jNia4RnxBip7eElOfZ1s/edit?usp=sharing" target="_blank" rel="noopener noreferrer" class="w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs text-center transition flex items-center justify-center gap-2">
+                            <i class="fa-brands fa-google"></i>
+                            <span>Перейти до спільної вправи в Google Docs</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 2: PRACTICE TASKS -->
+    <div id="tab-practice-content" class="space-y-6">
+        <!-- 20 Question Navigation Pills (Mobile horizontal scroll / Desktop wrap) -->
+        <div class="bg-white rounded-2xl p-3 border border-slate-200 shadow-sm">
+            <div class="text-xs font-bold text-slate-500 mb-2 px-1 flex justify-between">
+                <span>Список прикладів (натисніть для переходу):</span>
+                <span class="text-brand-600" id="current-task-badge">Завдання 1 / 20</span>
+            </div>
+            <div id="task-nav-pills" class="flex flex-wrap sm:grid sm:grid-cols-10 gap-1.5 max-h-36 overflow-y-auto p-1">
+                <!-- Pills generated dynamically -->
+            </div>
+        </div>
+
+        <!-- Active Task Card -->
+        <div id="active-task-card" class="bg-white rounded-3xl p-6 sm:p-10 border-2 border-slate-200 shadow-sm transition-all relative overflow-hidden">
+            <!-- Question Number & Status Badge -->
+            <div class="flex items-center justify-between gap-2 mb-6">
+                <span class="px-3 py-1 rounded-xl bg-slate-900 text-white text-xs font-black tracking-wider uppercase" id="card-task-number">
+                    Приклад #1
+                </span>
+                <div id="task-status-badge" class="text-xs font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-600">
+                    Очікує відповіді
+                </div>
+            </div>
+
+            <!-- Mathematical Expression / Question -->
+            <div class="py-5 sm:py-8 bg-slate-50 rounded-2xl border border-slate-200/80 mb-6 px-4">
+                <p id="task-prompt-label" class="text-xs sm:text-sm font-semibold uppercase tracking-wider text-slate-500 mb-2 text-center">Обчисліть вираз:</p>
+                <div id="question-text" class="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 tracking-wide text-center leading-relaxed">
+                    ...
+                </div>
+            </div>
+
+            <!-- Choice Options Grid (For Multiple Choice Tasks) -->
+            <div id="choice-options-container" class="hidden grid grid-cols-1 gap-2.5 mb-6 max-w-xl mx-auto">
+                <!-- Generated dynamically via JS -->
+            </div>
+
+            <!-- Answer Input Form -->
+            <form id="answer-form" onsubmit="handleAnswerSubmit(event)" class="space-y-4 max-w-md mx-auto">
+                <div id="input-group-container">
+                    <label for="answer-input" id="answer-input-label" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2 text-center">
+                        Введіть вашу відповідь:
+                    </label>
+                    <div class="relative flex items-center">
+                        <input type="text" id="answer-input" autocomplete="off" placeholder="Ваша відповідь"
+                               class="w-full text-center text-xl sm:text-3xl font-black py-4 px-6 rounded-2xl border-2 border-slate-300 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/20 outline-none transition tracking-wider">
+                        
+                        <!-- Quick sign toggle button for easy mobile input -->
+                        <button type="button" id="sign-toggle-btn" onclick="toggleMinusSign()" class="absolute right-3 px-3 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 active:bg-slate-400 text-slate-800 font-black text-base shadow-sm transition" title="Додати або прибрати знак мінус">
+                            ±
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Touch Friendly Math Keypad for Mobile -->
+                <div id="math-keypad-container" class="grid grid-cols-4 gap-2 pt-2 sm:hidden">
+                    <button type="button" onclick="keypadPress('1')" class="keypad-btn">1</button>
+                    <button type="button" onclick="keypadPress('2')" class="keypad-btn">2</button>
+                    <button type="button" onclick="keypadPress('3')" class="keypad-btn">3</button>
+                    <button type="button" onclick="keypadPress('-')" class="keypad-btn font-bold text-rose-600 bg-rose-50">-</button>
+                    
+                    <button type="button" onclick="keypadPress('4')" class="keypad-btn">4</button>
+                    <button type="button" onclick="keypadPress('5')" class="keypad-btn">5</button>
+                    <button type="button" onclick="keypadPress('6')" class="keypad-btn">6</button>
+                    <button type="button" onclick="keypadBackspace()" class="keypad-btn text-amber-700 bg-amber-50"><i class="fa-solid fa-delete-left"></i></button>
+
+                    <button type="button" onclick="keypadPress('7')" class="keypad-btn">7</button>
+                    <button type="button" onclick="keypadPress('8')" class="keypad-btn">8</button>
+                    <button type="button" onclick="keypadPress('9')" class="keypad-btn">9</button>
+                    <button type="button" onclick="keypadPress('0')" class="keypad-btn">0</button>
+                </div>
+
+                <!-- Feedback Area (Red for incorrect, Green for correct) -->
+                <div id="feedback-box" class="hidden p-4 rounded-2xl border text-sm font-semibold transition-all">
+                    <div class="flex items-start gap-3">
+                        <div id="feedback-icon" class="text-xl mt-0.5"></div>
+                        <div class="space-y-1">
+                            <p id="feedback-title" class="font-bold text-base"></p>
+                            <p id="feedback-hint" class="text-xs sm:text-sm font-normal opacity-90"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit / Next Actions -->
+                <div class="flex gap-3 pt-2">
+                    <button type="submit" id="submit-btn" class="flex-1 py-4 px-6 rounded-2xl bg-brand-600 hover:bg-brand-700 text-white font-black text-lg shadow-lg shadow-brand-500/25 active:scale-[0.98] transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-check"></i>
+                        <span>Перевірити</span>
+                    </button>
+                    <button type="button" id="next-task-btn" onclick="goToNextTask()" class="hidden flex-1 py-4 px-6 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-black text-lg shadow-lg shadow-slate-900/20 active:scale-[0.98] transition flex items-center justify-center gap-2">
+                        <span>Наступне</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </form>
+
+            <!-- Navigation between tasks -->
+            <div class="flex justify-between items-center mt-8 pt-6 border-t border-slate-100 text-xs sm:text-sm font-bold text-slate-500">
+                <button type="button" onclick="goToPrevTask()" id="prev-task-btn" class="px-4 py-2 rounded-xl hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-chevron-left"></i> Попереднє
+                </button>
+                <span id="task-attempts-indicator" class="text-xs text-slate-400 font-normal">Спроб: 0</span>
+                <button type="button" onclick="goToNextTask()" id="nav-next-btn" class="px-4 py-2 rounded-xl hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition flex items-center gap-1.5">
+                    Наступне <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/student.js"></script>
+{% endblock %}

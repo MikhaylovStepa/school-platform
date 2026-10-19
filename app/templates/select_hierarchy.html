@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}Вибір класу, предмета та теми | ШколаОнлайн{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-8 sm:py-12">
+    <!-- Header with user greeting -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 pb-6 border-b border-slate-200">
+        <div>
+            <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                Навчальна програма
+            </h1>
+            <p class="text-slate-600 text-sm mt-1">
+                Оберіть тему або введіть прямий код кабінету для приєднання
+            </p>
+        </div>
+
+        <!-- Direct Room Code Entry Widget -->
+        <div class="w-full sm:w-auto bg-white p-2 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-2">
+            <div class="pl-2 text-slate-400">
+                <i class="fa-solid fa-key"></i>
+            </div>
+            <input type="text" id="direct-room-code" placeholder="Код кабінету (напр. math-6-add)"
+                   class="px-2 py-1.5 text-sm outline-none text-slate-800 font-mono w-48 uppercase">
+            <button onclick="goToDirectRoom()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold transition">
+                Увійти
+            </button>
+        </div>
+    </div>
+
+    <!-- Hierarchy Loading Skeleton -->
+    <div id="hierarchy-loading" class="space-y-6">
+        <div class="h-8 bg-slate-200 rounded-lg w-48 animate-pulse"></div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="h-48 bg-slate-200 rounded-2xl animate-pulse"></div>
+            <div class="h-48 bg-slate-200 rounded-2xl animate-pulse"></div>
+            <div class="h-48 bg-slate-200 rounded-2xl animate-pulse"></div>
+        </div>
+    </div>
+
+    <!-- Hierarchy Content -->
+    <div id="hierarchy-container" class="space-y-12 hidden">
+        <!-- Rendered dynamically via JS -->
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", async () => {
+        const user = getSavedUser();
+        if (!user) {
+            window.location.href = "/";
+            return;
+        }
+
+        try {
+            const resp = await fetch("/api/hierarchy");
+            const data = await resp.json();
+            renderHierarchy(data.grades, user);
+        } catch (e) {
+            console.error(e);
+            alert("Помилка завантаження програми. Перевірте з'єднання.");
+        } finally {
+            document.getElementById("hierarchy-loading").classList.add("hidden");
+            document.getElementById("hierarchy-container").classList.remove("hidden");
+        }
+    });
+
+    function renderHierarchy(grades, user) {
+        const container = document.getElementById("hierarchy-container");
+        container.innerHTML = "";
+
+        grades.forEach(grade => {
+            const gradeSection = document.createElement("div");
+            gradeSection.className = "space-y-6";
+
+            let subjectsHtml = "";
+            grade.subjects.forEach(subject => {
+                let topicsHtml = "";
+                subject.topics.forEach(topic => {
+                    const studentUrl = `/room/${topic.room_code}`;
+                    const teacherUrl = `/teacher/room/${topic.room_code}`;
+                    const actionUrl = user.role === "teacher" ? teacherUrl : studentUrl;
+                    const actionText = user.role === "teacher" ? "Відкрити кабінет моніторингу" : "Перейти до уроку та завдань";
+                    const actionIcon = user.role === "teacher" ? "fa-chalkboard-user" : "fa-play";
+                    const actionBtnColor = user.role === "teacher" ? "bg-indigo-600 hover:bg-indigo-700" : "bg-brand-600 hover:bg-brand-700";
+
+                    topicsHtml += `
+                        <div class="bg-white rounded-2xl p-6 border border-slate-200 hover:border-brand-400 hover:shadow-lg transition-all flex flex-col justify-between group">
+                            <div>
+                                <div class="flex items-center justify-between gap-2 mb-3">
+                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                        <i class="fa-solid fa-list-check mr-1 text-brand-600"></i> ${topic.tasks_count} завдань
+                                    </span>
+                                    <span class="font-mono text-xs text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                        #${topic.room_code}
+                                    </span>
+                                </div>
+                                <h4 class="text-lg font-bold text-slate-900 group-hover:text-brand-600 transition-colors mb-2">
+                                    ${topic.name}
+                                </h4>
+                                <p class="text-slate-600 text-xs sm:text-sm line-clamp-2 mb-4">
+                                    ${topic.description || "Теорія та тренувальні вправи."}
+                                </p>
+                            </div>
+
+                            <div class="pt-4 border-t border-slate-100">
+                                <a href="${actionUrl}" class="w-full py-2.5 px-4 rounded-xl ${actionBtnColor} text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition">
+                                    <i class="fa-solid ${actionIcon}"></i>
+                                    <span>${actionText}</span>
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                subjectsHtml += `
+                    <div class="space-y-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center font-bold text-sm">
+                                <i class="fa-solid fa-${subject.icon || 'calculator'}"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-slate-800">${subject.name}</h3>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                            ${topicsHtml}
+                        </div>
+                    </div>
+                `;
+            });
+
+            gradeSection.innerHTML = `
+                <div class="flex items-center gap-3 pb-3 border-b-2 border-slate-200">
+                    <span class="px-3 py-1 rounded-xl bg-slate-900 text-white font-black text-sm uppercase tracking-wider">
+                        ${grade.name}
+                    </span>
+                </div>
+                ${subjectsHtml}
+            `;
+
+            container.appendChild(gradeSection);
+        });
+    }
+
+    function goToDirectRoom() {
+        const code = document.getElementById("direct-room-code").value.trim().toLowerCase();
+        if (!code) {
+            alert("Будь ласка, введіть код кабінету.");
+            return;
+        }
+        const user = getSavedUser();
+        if (user && user.role === "teacher") {
+            window.location.href = `/teacher/room/${code}`;
+        } else {
+            window.location.href = `/room/${code}`;
+        }
+    }
+</script>
+{% endblock %}

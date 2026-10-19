@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}Кабінет моніторингу вчителя | ШколаОнлайн{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-6 sm:py-8">
+    <!-- Header with Breadcrumbs and Topic Info -->
+    <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm mb-6">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <div class="flex items-center gap-2 mb-2">
+                    <a href="/hierarchy" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+                        <i class="fa-solid fa-arrow-left"></i> Всі теми
+                    </a>
+                    <span class="text-slate-300">•</span>
+                    <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200" id="topic-grade-subject">
+                        6 Клас • Математика
+                    </span>
+                </div>
+                <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight" id="room-topic-title">
+                    Завантаження кабінету...
+                </h1>
+                <p class="text-slate-600 text-xs sm:text-sm mt-1">
+                    Моніторинг присутності та виконання завдань учнями в реальному часі.
+                </p>
+            </div>
+
+            <!-- Quick Room Share Box -->
+            <div class="flex flex-wrap items-center gap-2">
+                <div class="bg-slate-50 border border-slate-200 px-3 py-2 rounded-2xl flex items-center gap-2 font-mono text-xs">
+                    <span class="text-slate-500">Код кабінету:</span>
+                    <span id="room-code-badge" class="font-bold text-slate-900 uppercase">...</span>
+                </div>
+                <button onclick="copyRoomLink()" class="px-3.5 py-2 rounded-2xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs border border-indigo-200 transition flex items-center gap-1.5 shadow-sm">
+                    <i class="fa-solid fa-copy"></i> Скопіювати посилання для учнів
+                </button>
+                <div class="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span id="ws-status-text">Live підключено</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metric KPI Cards -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mt-6 pt-6 border-t border-slate-100">
+            <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200">
+                <div class="flex items-center justify-between text-slate-500 text-xs font-bold mb-1">
+                    <span>Всього учнів</span>
+                    <i class="fa-solid fa-users text-slate-400"></i>
+                </div>
+                <div class="text-2xl font-black text-slate-900" id="stat-total-students">0</div>
+            </div>
+
+            <div class="bg-emerald-50 rounded-2xl p-4 border border-emerald-200">
+                <div class="flex items-center justify-between text-emerald-700 text-xs font-bold mb-1">
+                    <span>Працюють на сторінці</span>
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                </div>
+                <div class="text-2xl font-black text-emerald-800" id="stat-active-online">0</div>
+            </div>
+
+            <div class="bg-amber-50 rounded-2xl p-4 border border-amber-200">
+                <div class="flex items-center justify-between text-amber-700 text-xs font-bold mb-1">
+                    <span>Згорнули вкладку</span>
+                    <i class="fa-solid fa-eye-slash text-amber-500"></i>
+                </div>
+                <div class="text-2xl font-black text-amber-800" id="stat-tab-hidden">0</div>
+            </div>
+
+            <div class="bg-indigo-50 rounded-2xl p-4 border border-indigo-200">
+                <div class="flex items-center justify-between text-indigo-700 text-xs font-bold mb-1">
+                    <span>Сер. успішність</span>
+                    <i class="fa-solid fa-chart-line text-indigo-500"></i>
+                </div>
+                <div class="text-2xl font-black text-indigo-900" id="stat-avg-progress">0%</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Event Feed Toast Bar -->
+    <div id="live-activity-bar" class="hidden mb-6 bg-slate-900 text-white px-4 py-3 rounded-2xl text-xs sm:text-sm font-medium flex items-center justify-between shadow-lg shadow-slate-900/10 transition-all">
+        <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span id="live-activity-text">Очікування дій учнів...</span>
+        </div>
+        <span class="text-slate-400 text-xs" id="live-activity-time">зараз</span>
+    </div>
+
+    <!-- Controls & Search -->
+    <div class="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 mb-6">
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
+            <div class="relative flex-1 max-w-md">
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+                <input type="text" id="student-search-input" oninput="filterStudents()" placeholder="Пошук учня за ім'ям..."
+                       class="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-300 text-sm outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white">
+            </div>
+
+            <!-- Class Filter Dropdown -->
+            <div class="flex items-center gap-2">
+                <label for="class-filter-select" class="text-xs font-bold text-slate-600 whitespace-nowrap">
+                    <i class="fa-solid fa-graduation-cap text-indigo-600 mr-1"></i> Клас:
+                </label>
+                <select id="class-filter-select" onchange="handleClassFilterChange(this.value)"
+                        class="px-3 py-2 rounded-xl border border-slate-300 text-sm font-semibold text-slate-800 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none shadow-sm transition">
+                    <option value="all">Всі класи</option>
+                    <option value="6-А">6-А клас</option>
+                    <option value="6-Б">6-Б клас</option>
+                    <option value="7-А">7-А клас</option>
+                    <option value="7-Б">7-Б клас</option>
+                    <option value="8-А">8-А клас</option>
+                    <option value="8-Б">8-Б клас</option>
+                    <option value="9-А">9-А клас</option>
+                    <option value="9-Б">9-Б клас</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2 self-end sm:self-auto">
+            <button onclick="refreshDashboardData()" class="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 shadow-sm transition">
+                <i class="fa-solid fa-rotate text-slate-500" id="refresh-icon"></i> Оновити
+            </button>
+            <div class="flex rounded-xl bg-slate-200 p-0.5 text-xs font-bold">
+                <button onclick="setViewMode('cards')" id="view-mode-cards-btn" class="px-3 py-1.5 rounded-lg bg-white text-indigo-700 shadow-sm transition">
+                    <i class="fa-solid fa-grip mr-1"></i> Картки
+                </button>
+                <button onclick="setViewMode('table')" id="view-mode-table-btn" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition">
+                    <i class="fa-solid fa-table-list mr-1"></i> Таблиця
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Students Container -->
+    <div id="students-cards-view" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <!-- Student cards rendered here -->
+    </div>
+
+    <div id="students-table-view" class="hidden bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs sm:text-sm">
+                <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
+                    <tr>
+                        <th class="py-3 px-4">Учень</th>
+                        <th class="py-3 px-4">Статус</th>
+                        <th class="py-3 px-4">Поточне завдання</th>
+                        <th class="py-3 px-4">Прогрес (з 20)</th>
+                        <th class="py-3 px-4">Спроби</th>
+                        <th class="py-3 px-4 text-right">Дії</th>
+                    </tr>
+                </thead>
+                <tbody id="students-table-body" class="divide-y divide-slate-100">
+                    <!-- Table rows rendered here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="empty-state" class="hidden bg-white rounded-3xl p-12 text-center border border-slate-200">
+        <div class="w-16 h-16 rounded-3xl bg-slate-100 text-slate-400 flex items-center justify-center text-2xl mx-auto mb-4">
+            <i class="fa-solid fa-user-clock"></i>
+        </div>
+        <h3 class="text-lg font-bold text-slate-800 mb-1">Ще немає учнів у кабінеті</h3>
+        <p class="text-slate-500 text-sm max-w-md mx-auto mb-6">
+            Надайте учням код кабінету <span class="font-mono font-bold text-slate-900" id="empty-room-code">...</span> або скопіюйте посилання. Як тільки вони зайдуть, ви побачите їхні дії тут!
+        </p>
+        <button onclick="copyRoomLink()" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md transition inline-flex items-center gap-2">
+            <i class="fa-solid fa-copy"></i> Скопіювати пряме посилання
+        </button>
+    </div>
+</div>
+
+<!-- Modal: Student Detailed Attempt History -->
+<div id="student-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <!-- Modal Header -->
+        <div class="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+            <div>
+                <div class="flex items-center gap-2 mb-1">
+                    <span id="modal-student-status-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold"></span>
+                    <span class="text-xs text-slate-500" id="modal-student-meta"></span>
+                </div>
+                <h3 class="text-xl font-black text-slate-900" id="modal-student-name">Ім'я учня</h3>
+            </div>
+            <button onclick="closeStudentModal()" class="w-9 h-9 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-700 flex items-center justify-center transition">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Modal Body (20 Tasks Details) -->
+        <div class="p-6 overflow-y-auto space-y-4" id="modal-tasks-list">
+            <!-- 20 tasks progress rows -->
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="p-4 border-t border-slate-100 bg-slate-50 flex justify-between items-center text-xs text-slate-500">
+            <span id="modal-summary-text">Всього вирішено: 0 / 20</span>
+            <button onclick="closeStudentModal()" class="px-4 py-2 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 transition">
+                Закрити
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/teacher.js"></script>
+{% endblock %}
