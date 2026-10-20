@@ -3,9 +3,9 @@
 {% block title %}Урок та завдання | ШколаОнлайн{% endblock %}
 
 {% block head %}
-<!-- Markdown rendering for theory -->
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<!-- Markdown rendering for theory & Celebrations (Offline / Local) -->
+<script src="/static/vendor/marked/marked.min.js"></script>
+<script src="/static/vendor/confetti/confetti.browser.min.js"></script>
 {% endblock %}
 
 {% block content %}
@@ -807,6 +807,192 @@
                             <span>Перейти до спільної вправи в Google Docs</span>
                         </a>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 9TH GRADE LAB CONTAINER: DOCUMENT LAYOUT, COLUMNS & HEADERS -->
+        <div id="lab-9-layout-content" class="space-y-6 hidden">
+            <!-- Header Banner & Downloads Shelf -->
+            <div class="bg-gradient-to-br from-indigo-900 via-slate-900 to-sky-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-sky-400/20">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-white/10">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-2xl bg-sky-500/20 text-sky-300 border border-sky-400/30 flex items-center justify-center text-2xl font-black">
+                            <i class="fa-solid fa-file-lines"></i>
+                        </div>
+                        <div>
+                            <span class="px-3 py-0.5 rounded-full bg-sky-500/30 text-sky-200 text-[11px] font-bold uppercase tracking-wider">
+                                Практична робота • 9 клас
+                            </span>
+                            <h2 class="text-xl sm:text-2xl font-black text-white mt-1">Структура та макет текстового документа</h2>
+                            <p class="text-xs sm:text-sm text-slate-300 mt-1">Розриви сторінок і стовпців, 3 шпальти з розділювачем, нумерація та колонтитул з текстом «Іван Франко».</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Materials Download Shelf -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-6">
+                    <a href="/static/materials/9class/document_layout/franko-ivan-iakovych-farbovanyy-lys.docx" download class="p-4 rounded-2xl bg-white/10 hover:bg-white/20 border border-sky-400/30 transition group flex items-start gap-3">
+                        <div class="text-3xl text-sky-300 group-hover:scale-110 transition"><i class="fa-solid fa-file-word"></i></div>
+                        <div>
+                            <div class="text-sm font-bold text-white group-hover:text-sky-200">franko-...farbovanyy-lys.docx</div>
+                            <div class="text-xs text-slate-300">24.3 КБ • Текстовий документ для виконання роботи</div>
+                        </div>
+                    </a>
+                    <a href="/static/materials/9class/document_layout/franko_logo.png" download class="p-4 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 transition group flex items-start gap-3">
+                        <div class="text-3xl text-amber-300 group-hover:scale-110 transition"><i class="fa-solid fa-image"></i></div>
+                        <div>
+                            <div class="text-sm font-bold text-white group-hover:text-amber-200">franko_logo.png</div>
+                            <div class="text-xs text-slate-300">4.4 КБ • Графічний логотип для верхнього колонтитула</div>
+                        </div>
+                    </a>
+                    <a href="/static/materials/9class/document_layout/header_icon.png" download class="p-4 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 transition group flex items-start gap-3">
+                        <div class="text-3xl text-emerald-300 group-hover:scale-110 transition"><i class="fa-solid fa-image"></i></div>
+                        <div>
+                            <div class="text-sm font-bold text-white group-hover:text-emerald-200">header_icon.png</div>
+                            <div class="text-xs text-slate-300">5.2 КБ • Додаткове зображення для оформлення колонтитула</div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <!-- 6 PRACTICAL STEPS CARDS -->
+            <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm">
+                <div class="flex items-center gap-2 mb-6 pb-3 border-b border-slate-100">
+                    <div class="w-8 h-8 rounded-xl bg-sky-50 text-sky-700 flex items-center justify-center font-black text-sm">
+                        <i class="fa-solid fa-list-check"></i>
+                    </div>
+                    <h3 class="text-lg sm:text-xl font-black text-slate-900">Покроковий хід виконання практичної роботи</h3>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Step 1 -->
+                    <div class="p-5 rounded-2xl bg-slate-50 border border-slate-200 hover:border-sky-400 transition flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="w-7 h-7 rounded-xl bg-slate-900 text-white font-bold text-xs flex items-center justify-center">1</span>
+                                <span class="text-[11px] font-bold uppercase text-slate-500">Вихідний файл</span>
+                            </div>
+                            <h4 class="font-bold text-slate-900 text-sm mb-2">Завантажити та відкрити документ</h4>
+                            <p class="text-xs text-slate-600 leading-relaxed">
+                                Завантажте <code>franko-ivan-iakovych-farbovanyy-lys.docx</code> та відкрийте його в <strong>Microsoft Word</strong> або <strong>Google Docs</strong>.
+                            </p>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-slate-200/60 text-[11px] text-sky-700 font-semibold">
+                            💡 Документ містить повний текст казки «Фарбований лис».
+                        </div>
+                    </div>
+
+                    <!-- Step 2 -->
+                    <div class="p-5 rounded-2xl bg-slate-50 border border-slate-200 hover:border-sky-400 transition flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="w-7 h-7 rounded-xl bg-sky-600 text-white font-bold text-xs flex items-center justify-center">2</span>
+                                <span class="text-[11px] font-bold uppercase text-slate-500">Розрив сторінки</span>
+                            </div>
+                            <h4 class="font-bold text-slate-900 text-sm mb-2">Перенести текст після 1-го абзацу</h4>
+                            <p class="text-xs text-slate-600 leading-relaxed">
+                                Поставте курсор одразу після першого абзацу та вставте розрив сторінки:
+                                <br><span class="font-semibold text-slate-800">Word:</span> <em>Вставлення ➔ Розрив сторінки</em> (<kbd class="px-1.5 py-0.5 bg-slate-200 rounded text-[10px]">Ctrl+Enter</kbd>).
+                                <br><span class="font-semibold text-slate-800">Google Docs:</span> <em>Вставити ➔ Розрив ➔ Розрив сторінки</em>.
+                            </p>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-slate-200/60 text-[11px] text-emerald-700 font-semibold">
+                            ✅ 1-й абзац залишиться на сторінці 1, решта — на сторінці 2.
+                        </div>
+                    </div>
+
+                    <!-- Step 3 -->
+                    <div class="p-5 rounded-2xl bg-slate-50 border border-slate-200 hover:border-sky-400 transition flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="w-7 h-7 rounded-xl bg-indigo-600 text-white font-bold text-xs flex items-center justify-center">3</span>
+                                <span class="text-[11px] font-bold uppercase text-slate-500">Колонки</span>
+                            </div>
+                            <h4 class="font-bold text-slate-900 text-sm mb-2">3 стовпці з розділювачем</h4>
+                            <p class="text-xs text-slate-600 leading-relaxed">
+                                Виділіть текст від 2-ї сторінки до кінця документа:
+                                <br><span class="font-semibold text-slate-800">Word:</span> <em>Макет ➔ Стовпці ➔ Інші стовпці... ➔ 3 стовпці + прапорець «Розділювач»</em>.
+                                <br><span class="font-semibold text-slate-800">Google Docs:</span> <em>Формат ➔ Стовпці ➔ Інші параметри ➔ 3 стовпці + «Лінія між стовпцями»</em>.
+                            </p>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-slate-200/60 text-[11px] text-indigo-700 font-semibold">
+                            ✅ Текст розподілено на 3 шпальти з вертикальною лінією.
+                        </div>
+                    </div>
+
+                    <!-- Step 4 -->
+                    <div class="p-5 rounded-2xl bg-slate-50 border border-slate-200 hover:border-sky-400 transition flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="w-7 h-7 rounded-xl bg-purple-600 text-white font-bold text-xs flex items-center justify-center">4</span>
+                                <span class="text-[11px] font-bold uppercase text-slate-500">Розрив колонок</span>
+                            </div>
+                            <h4 class="font-bold text-slate-900 text-sm mb-2">Перенести текст у 3-й стовпчик</h4>
+                            <p class="text-xs text-slate-600 leading-relaxed">
+                                На 2-й сторінці вставте <strong>два розриви стовпця</strong> поспіль:
+                                <br><span class="font-semibold text-slate-800">Word:</span> <em>Макет ➔ Розриви ➔ Стовпець</em> (<kbd class="px-1.5 py-0.5 bg-slate-200 rounded text-[10px]">Ctrl+Shift+Enter</kbd>).
+                                <br><span class="font-semibold text-slate-800">Google Docs:</span> <em>Вставити ➔ Розрив ➔ Розрив стовпця</em>.
+                            </p>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-slate-200/60 text-[11px] text-purple-700 font-semibold">
+                            ✅ 1-й та 2-й стовпчики на 2-й сторінці залишаться порожніми.
+                        </div>
+                    </div>
+
+                    <!-- Step 5 -->
+                    <div class="p-5 rounded-2xl bg-slate-50 border border-slate-200 hover:border-sky-400 transition flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="w-7 h-7 rounded-xl bg-emerald-600 text-white font-bold text-xs flex items-center justify-center">5</span>
+                                <span class="text-[11px] font-bold uppercase text-slate-500">Нумерація</span>
+                            </div>
+                            <h4 class="font-bold text-slate-900 text-sm mb-2">Нумерація сторінок унизу по центру</h4>
+                            <p class="text-xs text-slate-600 leading-relaxed">
+                                Додайте номери сторінок:
+                                <br><span class="font-semibold text-slate-800">Word:</span> <em>Вставлення ➔ Номер сторінки ➔ Унизу сторінки ➔ По центру</em>.
+                                <br><span class="font-semibold text-slate-800">Google Docs:</span> <em>Вставити ➔ Номери сторінок ➔ Внизу по центру</em>.
+                            </p>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-slate-200/60 text-[11px] text-emerald-700 font-semibold">
+                            ✅ На кожній сторінці з'явиться відповідний номер.
+                        </div>
+                    </div>
+
+                    <!-- Step 6 -->
+                    <div class="p-5 rounded-2xl bg-sky-50 border border-sky-300 hover:border-sky-500 transition flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="w-7 h-7 rounded-xl bg-sky-700 text-white font-bold text-xs flex items-center justify-center">6</span>
+                                <span class="text-[11px] font-bold uppercase text-sky-800">Колонтитул</span>
+                            </div>
+                            <h4 class="font-bold text-slate-900 text-sm mb-2">Верхній колонтитул з картинкою</h4>
+                            <p class="text-xs text-slate-600 leading-relaxed">
+                                Двічі клацніть у верхньому полі документа:
+                                <br>1. Введіть текст: <strong>«Іван Франко»</strong> та вирівняйте по центру (<kbd class="px-1.5 py-0.5 bg-slate-200 rounded text-[10px]">Ctrl+E</kbd>).
+                                <br>2. Вставте зображення (логотип) та оберіть обтікання <em>«Перед текстом»</em> / <em>«Обтікання текстом»</em> для закріплення.
+                            </p>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-sky-200 text-[11px] text-sky-900 font-bold">
+                            ✅ Заголовок і картинка дублюються у верхньому полі сторінок.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KEYBOARD SHORTCUTS CHEATSHEET -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center gap-3">
+                    <div class="p-2.5 rounded-xl bg-sky-100 text-sky-800 font-bold text-xs font-mono shrink-0">Ctrl + Enter</div>
+                    <div class="text-xs text-slate-700 font-medium">Швидка вставка розриву сторінки</div>
+                </div>
+                <div class="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center gap-3">
+                    <div class="p-2.5 rounded-xl bg-purple-100 text-purple-800 font-bold text-xs font-mono shrink-0">Ctrl + Shift + Enter</div>
+                    <div class="text-xs text-slate-700 font-medium">Розрив стовпця (у MS Word)</div>
+                </div>
+                <div class="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center gap-3">
+                    <div class="p-2.5 rounded-xl bg-emerald-100 text-emerald-800 font-bold text-xs font-mono shrink-0">Ctrl + E</div>
+                    <div class="text-xs text-slate-700 font-medium">Вирівнювання тексту / заголовка по центру</div>
                 </div>
             </div>
         </div>

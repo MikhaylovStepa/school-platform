@@ -387,5 +387,98 @@ class TestSchoolPlatform(unittest.TestCase):
         self.assertIn("function handleFormatsSizeForm", student_js)
         self.assertIn("info-9-formats-file-sizes", student_js)
 
+    def test_10_offline_vendor_assets(self):
+        # 1. Verify all vendor files are served locally
+        vendor_assets = [
+            "/static/vendor/tailwindcss/tailwind.js",
+            "/static/vendor/fontawesome/css/all.min.css",
+            "/static/vendor/fontawesome/webfonts/fa-solid-900.woff2",
+            "/static/vendor/fontawesome/webfonts/fa-brands-400.woff2",
+            "/static/vendor/fontawesome/webfonts/fa-regular-400.woff2",
+            "/static/vendor/marked/marked.min.js",
+            "/static/vendor/confetti/confetti.browser.min.js",
+        ]
+        for asset in vendor_assets:
+            resp = self.client.get(asset)
+            self.assertEqual(resp.status_code, 200, f"Asset failed to load: {asset}")
+            self.assertGreater(len(resp.content), 0, f"Asset empty: {asset}")
+
+        # 2. Verify base.html and topic_student.html do not use external CDN scripts/styles
+        home_page = self.client.get("/")
+        self.assertEqual(home_page.status_code, 200)
+        self.assertIn("/static/vendor/tailwindcss/tailwind.js", home_page.text)
+        self.assertIn("/static/vendor/fontawesome/css/all.min.css", home_page.text)
+        self.assertNotIn("cdn.tailwindcss.com", home_page.text)
+        self.assertNotIn("cdnjs.cloudflare.com", home_page.text)
+
+        room_page = self.client.get("/room/info-8-archive-operations")
+        self.assertEqual(room_page.status_code, 200)
+        self.assertIn("/static/vendor/marked/marked.min.js", room_page.text)
+        self.assertIn("/static/vendor/confetti/confetti.browser.min.js", room_page.text)
+        self.assertNotIn("cdn.jsdelivr.net", room_page.text)
+
+    def test_11_informatics_9class_document_layout_cabinet(self):
+        # 1. Verify Hierarchy API has Grade 9 -> Informatics -> Document Layout topic
+        hierarchy = self.client.get("/api/hierarchy")
+        self.assertEqual(hierarchy.status_code, 200)
+        grade9 = next((g for g in hierarchy.json()["grades"] if g["slug"] == "grade-9"), None)
+        self.assertIsNotNone(grade9)
+
+        informatics = next((s for s in grade9["subjects"] if s["slug"] == "informatics"), None)
+        self.assertIsNotNone(informatics)
+        topic = next((t for t in informatics["topics"] if t["room_code"] == "info-9-document-layout"), None)
+        self.assertIsNotNone(topic)
+        self.assertEqual(topic["tasks_count"], 10)
+
+        # 2. Verify static materials are served correctly
+        for material in (
+            "/static/materials/9class/document_layout/franko-ivan-iakovych-farbovanyy-lys.docx",
+            "/static/materials/9class/document_layout/franko_logo.png",
+            "/static/materials/9class/document_layout/header_icon.png",
+        ):
+            resp = self.client.get(material)
+            self.assertEqual(resp.status_code, 200)
+            self.assertGreater(len(resp.content), 0)
+
+        # 3. Verify HTML Room page
+        room_page = self.client.get("/room/info-9-document-layout")
+        self.assertEqual(room_page.status_code, 200)
+        html = room_page.text
+        self.assertIn("lab-9-layout-content", html)
+        self.assertIn("franko-...farbovanyy-lys.docx", html)
+        self.assertIn("Іван Франко", html)
+
+        # 4. Verify JS handles topic room
+        student_js = Path("app/static/js/student.js").read_text(encoding="utf-8")
+        self.assertIn("info-9-document-layout", student_js)
+        self.assertIn("lab9Layout", student_js)
+
+        # 5. Verify Student can fetch and answer tasks
+        device_id = f"test-dev-{uuid.uuid4()}"
+        auth_resp = self.client.post("/api/auth/student-session", json={
+            "name": "Учень 9 класу",
+            "device_id": device_id,
+            "grade_level": 9,
+            "class_letter": "А"
+        })
+        self.assertEqual(auth_resp.status_code, 200)
+        user_id = auth_resp.json()["user_id"]
+
+        tasks_resp = self.client.get(f"/api/tasks/topic/info-9-document-layout?user_id={user_id}")
+        self.assertEqual(tasks_resp.status_code, 200)
+        tasks = tasks_resp.json()["tasks"]
+        self.assertEqual(len(tasks), 10)
+
+        # Submit answer to Task 1 (A)
+        task_1 = next(t for t in tasks if t["task_order"] == 1)
+        sub_resp = self.client.post("/api/tasks/submit", json={
+            "user_id": user_id,
+            "task_id": task_1["id"],
+            "submitted_answer": "A",
+            "room_code": "info-9-document-layout"
+        })
+        self.assertEqual(sub_resp.status_code, 200)
+        self.assertTrue(sub_resp.json()["is_correct"])
+
 if __name__ == "__main__":
     unittest.main()

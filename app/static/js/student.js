@@ -411,19 +411,22 @@ async function loadTopicData() {
 function configureTopicWorkspace() {
     const isTextFormatsLesson = currentRoomCode === "info-9-formats";
     const isArchiveOperationsLesson = currentRoomCode === "info-8-archive-operations";
+    const isDocumentLayoutLesson = currentRoomCode === "info-9-document-layout";
     slidesData = isTextFormatsLesson ? slidesData9 : slidesData8;
     currentSlideIndex = 0;
 
     const lab8 = document.getElementById("lab-8-content");
     const lab8Archives = document.getElementById("lab-8-archives-content");
     const lab9 = document.getElementById("lab-9-content");
+    const lab9Layout = document.getElementById("lab-9-layout-content");
     const labTitle = document.getElementById("tab-lab-title");
     const downloadBtn = document.getElementById("slide-pptx-download-btn");
 
-    if (lab8) lab8.classList.toggle("hidden", isTextFormatsLesson || isArchiveOperationsLesson);
+    if (lab8) lab8.classList.toggle("hidden", isTextFormatsLesson || isArchiveOperationsLesson || isDocumentLayoutLesson);
     if (lab8Archives) lab8Archives.classList.toggle("hidden", !isArchiveOperationsLesson);
     if (lab9) lab9.classList.toggle("hidden", !isTextFormatsLesson);
-    if (labTitle) labTitle.textContent = (isTextFormatsLesson || isArchiveOperationsLesson) ? "Практична робота" : "Практична лабораторія";
+    if (lab9Layout) lab9Layout.classList.toggle("hidden", !isDocumentLayoutLesson);
+    if (labTitle) labTitle.textContent = (isTextFormatsLesson || isArchiveOperationsLesson || isDocumentLayoutLesson) ? "Практична робота" : "Практична лабораторія";
     if (downloadBtn) {
         downloadBtn.href = isTextFormatsLesson
             ? "/static/materials/9class/text_formats/Informatyka_9_Formaty_faіliv_Rezhymy_Google_Docs_v2.pptx"
