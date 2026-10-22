@@ -18,12 +18,13 @@ class SubmitAnswerRequest(BaseModel):
 
 def normalize_general_answer(ans: str) -> str:
     s = ans.strip().lower()
-    s = s.replace("−", "-").replace("—", "-")
-    trans = str.maketrans({"а": "a", "в": "b", "с": "c", "д": "d", "х": "x"})
+    s = s.replace("−", "-").replace("—", "-").replace("–", "-")
+    trans = str.maketrans({"а": "a", "в": "b", "с": "c", "д": "d", "х": "x", "у": "y", "е": "e", "к": "k", "м": "m", "н": "n", "р": "p", "т": "t", "о": "o"})
     s = s.translate(trans)
-    s = s.replace(" ", "")
+    s = s.replace(" ", "").replace("*", "").replace("·", "")
     s = re.sub(r'(\d+),(\d+)', r'\1.\2', s)
-    if s.startswith("+"):
+    # Only strip leading '+' if it is a signed number (e.g. '+5' -> '5'), but keep for sign sequences (e.g. '+-+', '+++')
+    if s.startswith("+") and len(s) > 1 and (s[1].isdigit() or s[1] == '.'):
         s = s[1:]
     return s
 
@@ -31,15 +32,59 @@ def check_answer_match(submitted: str, correct_spec: str) -> bool:
     norm_sub = normalize_general_answer(submitted)
     options = [opt.strip() for opt in correct_spec.split("|")]
     
+    # 1. Exact normalized match
     for opt in options:
         norm_opt = normalize_general_answer(opt)
         if norm_sub == norm_opt:
             return True
-        # Check numeric equivalence with small tolerance
+            
+    # 2. Check multi-choice list match (e.g. "A, C" vs "C, A" vs "AC")
+    sub_letters = sorted(re.findall(r'[a-z]', norm_sub))
+    for opt in options:
+        opt_letters = sorted(re.findall(r'[a-z]', normalize_general_answer(opt)))
+        if sub_letters and opt_letters and sub_letters == opt_letters:
+            return True
+
+    # 3. Check prime factors list match (e.g. "2, 2, 2, 3, 3, 7" vs "2*2*2*3*3*7")
+    sub_numbers = [int(n) for n in re.findall(r'\d+', norm_sub)]
+    for opt in options:
+        opt_numbers = [int(n) for n in re.findall(r'\d+', normalize_general_answer(opt))]
+        if len(sub_numbers) > 1 and len(opt_numbers) > 1:
+            if sorted(sub_numbers) == sorted(opt_numbers):
+                return True
+
+    # 4. Check algebraic equivalents (e.g. "0a" matches "0", "1x" matches "x", "-1x" matches "-x")
+    zero_aliases = {"0", "0a", "0b", "0c", "0x", "0y", "0m", "0k", "0n", "0p", "0t", "0z"}
+    if norm_sub in zero_aliases:
+        for opt in options:
+            if normalize_general_answer(opt) in zero_aliases:
+                return True
+    if norm_sub.startswith("1") and len(norm_sub) > 1 and norm_sub[1:].isalpha():
+        var = norm_sub[1:]
+        for opt in options:
+            if normalize_general_answer(opt) == var:
+                return True
+    if norm_sub.startswith("-1") and len(norm_sub) > 2 and norm_sub[2:].isalpha():
+        var = "-" + norm_sub[2:]
+        for opt in options:
+            if normalize_general_answer(opt) == var:
+                return True
+    for opt in options:
+        norm_opt = normalize_general_answer(opt)
+        if norm_opt.startswith("1") and len(norm_opt) > 1 and norm_opt[1:].isalpha():
+            if norm_sub == norm_opt[1:]:
+                return True
+        if norm_opt.startswith("-1") and len(norm_opt) > 2 and norm_opt[2:].isalpha():
+            if norm_sub == "-" + norm_opt[2:]:
+                return True
+
+    # 5. Check numeric equivalence with small tolerance
+    for opt in options:
+        norm_opt = normalize_general_answer(opt)
         try:
             sub_num_str = re.sub(r'[^\d\.\-]', '', norm_sub)
             opt_num_str = re.sub(r'[^\d\.\-]', '', norm_opt)
-            if sub_num_str and opt_num_str:
+            if sub_num_str and opt_num_str and not any(c.isalpha() for c in norm_sub) and not any(c.isalpha() for c in norm_opt):
                 sub_num = float(sub_num_str)
                 opt_num = float(opt_num_str)
                 if abs(sub_num - opt_num) < 0.06 or (opt_num != 0 and abs(sub_num - opt_num) / opt_num < 0.05):
@@ -47,7 +92,7 @@ def check_answer_match(submitted: str, correct_spec: str) -> bool:
         except Exception:
             pass
         # Check numeric range (e.g. 320-335 or 190-200)
-        if "-" in opt and not opt.startswith("-"):
+        if "-" in opt and not opt.startswith("-") and not any(c.isalpha() for c in opt):
             parts = opt.split("-")
             if len(parts) == 2:
                 try:

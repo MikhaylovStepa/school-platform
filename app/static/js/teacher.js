@@ -7,6 +7,7 @@ let ws = null;
 let pollingInterval = null;
 let currentViewMode = "cards"; // 'cards' or 'table'
 let selectedClassFilter = "all";
+let currentModalStudentId = null;
 
 document.addEventListener("DOMContentLoaded", async () => {
     currentTeacher = getSavedUser();
@@ -171,7 +172,10 @@ function renderCardsView(students) {
                 tooltip = `Завдання #${tp.task_order}: вирішено вірно (${tp.attempt_count} спр.)`;
             } else if (tp.attempt_count > 0 && !tp.last_is_correct) {
                 squareClass = "bg-rose-500 text-white border-rose-600 font-bold animate-pulse shadow-xs";
-                tooltip = `Завдання #${tp.task_order}: помилка! Остання відповідь: "${tp.last_answer}" (${tp.attempt_count} спр.)`;
+                const isFactor = tp.last_answer && tp.last_answer.includes("множник");
+                tooltip = isFactor 
+                    ? `Завдання #${tp.task_order}: ⚠️ Невірний множник! ${tp.last_answer} (${tp.attempt_count} спр.)`
+                    : `Завдання #${tp.task_order}: помилка! Остання відповідь: "${tp.last_answer}" (${tp.attempt_count} спр.)`;
             } else if (s.is_online && s.current_task_order === tp.task_order) {
                 squareClass = "bg-amber-400 text-slate-900 border-amber-500 font-black ring-2 ring-amber-300";
                 tooltip = `Завдання #${tp.task_order}: зараз виконує`;
@@ -185,6 +189,21 @@ function renderCardsView(students) {
             `;
         });
         matrixHtml += `</div>`;
+
+        // Check if student has a current error (e.g. incorrect factor or wrong answer)
+        const currentTaskProgress = s.tasks_progress.find(tp => tp.task_order === s.current_task_order) || s.tasks_progress[0];
+        let currentTaskErrorBanner = "";
+        if (currentTaskProgress && currentTaskProgress.attempt_count > 0 && !currentTaskProgress.last_is_correct) {
+            const isFactor = currentTaskProgress.last_answer && currentTaskProgress.last_answer.includes("множник");
+            currentTaskErrorBanner = `
+                <div class="mt-2.5 p-2 rounded-xl bg-rose-50 border border-rose-200 text-[11px] text-rose-800 flex items-start gap-1.5 font-medium shadow-xs">
+                    <i class="fa-solid fa-triangle-exclamation text-rose-600 mt-0.5 shrink-0"></i>
+                    <div class="truncate flex-1" title="${currentTaskProgress.last_answer}">
+                        <strong>${isFactor ? 'Помилка дільника' : 'Помилка'} у #${currentTaskProgress.task_order}:</strong> ${currentTaskProgress.last_answer}
+                    </div>
+                </div>
+            `;
+        }
 
         card.className = `bg-white rounded-3xl p-5 border ${borderHighlight} shadow-sm hover:shadow-md transition-all flex flex-col justify-between`;
         card.innerHTML = `
@@ -217,6 +236,7 @@ function renderCardsView(students) {
                     <span>Спроб всього: <strong class="text-slate-800">${s.total_attempts}</strong></span>
                 </div>
 
+                ${currentTaskErrorBanner}
                 ${matrixHtml}
             </div>
 
@@ -247,6 +267,13 @@ function renderTableView(students) {
             statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-500 border border-slate-200">⚪ Офлайн</span>`;
         }
 
+        const curTask = s.tasks_progress.find(tp => tp.task_order === s.current_task_order);
+        let taskAlert = "";
+        if (curTask && curTask.attempt_count > 0 && !curTask.last_is_correct) {
+            const isFactor = curTask.last_answer && curTask.last_answer.includes("множник");
+            taskAlert = `<span class="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200" title="${curTask.last_answer}">${isFactor ? '⚠️ Невірний множник' : '❌ Помилка'}</span>`;
+        }
+
         const tr = document.createElement("tr");
         tr.className = "hover:bg-slate-50/80 transition";
         tr.innerHTML = `
@@ -258,7 +285,7 @@ function renderTableView(students) {
                 <div class="text-[10px] text-slate-400 font-mono font-normal">IP: ${s.ip_address || "127.0.0.1"}</div>
             </td>
             <td class="py-3 px-4">${statusBadge}</td>
-            <td class="py-3 px-4 font-semibold text-slate-800">Завдання #${s.current_task_order || 1}</td>
+            <td class="py-3 px-4 font-semibold text-slate-800">Завдання #${s.current_task_order || 1} ${taskAlert}</td>
             <td class="py-3 px-4">
                 <div class="flex items-center gap-2">
                     <div class="w-20 bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
@@ -302,6 +329,7 @@ function openStudentModal(userId) {
     const student = dashboardData.students.find(s => s.user_id === userId);
     if (!student) return;
 
+    currentModalStudentId = userId;
     const classLabel = student.class_name ? ` (${student.class_name})` : "";
     document.getElementById("modal-student-name").textContent = `${student.name}${classLabel}`;
     document.getElementById("modal-student-meta").textContent = `Клас: ${student.class_name || "6-А"} • IP: ${student.ip_address || "127.0.0.1"} • ID: ${student.device_id}`;
@@ -342,15 +370,24 @@ function openStudentModal(userId) {
             tp.history.forEach(h => {
                 const mark = h.is_correct ? "✅ Вірно" : "❌ Помилка";
                 const badgeColor = h.is_correct ? "text-emerald-700 bg-emerald-100" : "text-rose-700 bg-rose-100";
+                const isFactorErr = h.submitted_answer && h.submitted_answer.includes("множник");
+                const rowClass = isFactorErr ? "bg-rose-50/80 p-2 rounded-xl border border-rose-200 text-rose-900" : "";
                 historyHtml += `
-                    <div class="flex items-center justify-between text-[11px]">
-                        <span>Спроба #${h.attempt_number}: введено <strong>"${h.submitted_answer}"</strong> (<span class="font-bold ${badgeColor} px-1.5 py-0.5 rounded">${mark}</span>)</span>
+                    <div class="flex items-center justify-between text-[11px] ${rowClass}">
+                        <span>Спроба #${h.attempt_number}: ${isFactorErr ? '⚠️ ' : ''}введено <strong>"${h.submitted_answer}"</strong> (<span class="font-bold ${badgeColor} px-1.5 py-0.5 rounded">${mark}</span>)</span>
                         <span class="text-slate-400 font-mono">${h.created_at}</span>
                     </div>
                 `;
             });
             historyHtml += `</div>`;
         }
+
+        const hasAttempts = tp.attempt_count > 0 || tp.is_solved;
+        const taskResetBtn = hasAttempts ? `
+            <button onclick="resetStudentTaskProgress(${student.user_id}, ${tp.task_id})" title="Скинути спроби тільки для цього завдання" class="px-2 py-1 rounded-lg bg-rose-100/80 hover:bg-rose-200 text-rose-800 text-[11px] font-bold transition flex items-center gap-1">
+                <i class="fa-solid fa-rotate-left"></i> Скинути
+            </button>
+        ` : "";
 
         item.className = `p-4 rounded-2xl border ${itemClass} transition`;
         item.innerHTML = `
@@ -359,9 +396,10 @@ function openStudentModal(userId) {
                     <span class="font-black text-xs uppercase tracking-wider text-slate-500">Завдання #${tp.task_order}</span>
                     <div class="font-mono font-bold text-base text-slate-900">${tp.question}</div>
                 </div>
-                <div class="text-right">
+                <div class="text-right flex flex-col items-end gap-1">
                     <span class="text-xs font-bold">${statusText}</span>
                     <div class="text-[11px] text-slate-500 font-mono">Правильна відп.: <strong>${tp.correct_answer}</strong></div>
+                    ${taskResetBtn}
                 </div>
             </div>
             ${historyHtml}
@@ -373,7 +411,63 @@ function openStudentModal(userId) {
 }
 
 function closeStudentModal() {
+    currentModalStudentId = null;
     document.getElementById("student-modal").classList.add("hidden");
+}
+
+async function confirmResetStudentProgress() {
+    if (!currentModalStudentId) return;
+    const student = dashboardData?.students.find(s => s.user_id === currentModalStudentId);
+    const studentName = student ? student.name : "учня";
+
+    if (!confirm(`Ви впевнені, що хочете повністю скинути весь прогрес і всі спроби учня "${studentName}"?\nУчень зможе пройти тест заново з першого завдання.`)) {
+        return;
+    }
+
+    try {
+        const resp = await fetch(`/api/teacher/rooms/${currentRoomCode}/students/${currentModalStudentId}/reset`, {
+            method: "POST"
+        });
+        if (resp.ok) {
+            showLiveToast(`Прогрес учня <strong>${studentName}</strong> успішно скинуто 🔄`);
+            await refreshDashboardData();
+            if (currentModalStudentId) {
+                openStudentModal(currentModalStudentId);
+            }
+        } else {
+            alert("Помилка під час скидання прогресу.");
+        }
+    } catch (e) {
+        console.error("Reset error:", e);
+        alert("Помилка сервера під час скидання.");
+    }
+}
+
+async function resetStudentTaskProgress(userId, taskId) {
+    const student = dashboardData?.students.find(s => s.user_id === userId);
+    const studentName = student ? student.name : "учня";
+
+    if (!confirm(`Скинути спроби для завдання учень "${studentName}"?`)) {
+        return;
+    }
+
+    try {
+        const resp = await fetch(`/api/teacher/rooms/${currentRoomCode}/students/${userId}/reset?task_id=${taskId}`, {
+            method: "POST"
+        });
+        if (resp.ok) {
+            showLiveToast(`Спроби для завдання учня <strong>${studentName}</strong> скинуто 🔄`);
+            await refreshDashboardData();
+            if (currentModalStudentId === userId) {
+                openStudentModal(userId);
+            }
+        } else {
+            alert("Помилка під час скидання спроб завдання.");
+        }
+    } catch (e) {
+        console.error("Task reset error:", e);
+        alert("Помилка сервера під час скидання завдання.");
+    }
 }
 
 function copyRoomLink() {
@@ -432,14 +526,28 @@ function connectWebSocket() {
 function handleLiveEvent(msg) {
     if (msg.event === "task_attempt") {
         const d = msg.data;
-        const resultText = d.is_correct ? "<span class='text-emerald-400 font-bold'>Вірно ✅</span>" : "<span class='text-rose-400 font-bold'>Помилка ❌</span>";
-        showLiveToast(`Учень <strong>${d.student_name}</strong> відповів на завдання #${d.task_order} (${resultText})`);
+        if (d.submitted_answer && d.submitted_answer.includes("множник")) {
+            showLiveToast(`⚠️ Учень <strong>${d.student_name}</strong> у завданні #${d.task_order}: <span class='text-rose-400 font-bold'>${d.submitted_answer} ❌</span>`);
+        } else {
+            const resultText = d.is_correct ? "<span class='text-emerald-400 font-bold'>Вірно ✅</span>" : "<span class='text-rose-400 font-bold'>Помилка ❌</span>";
+            showLiveToast(`Учень <strong>${d.student_name}</strong> відповів на завдання #${d.task_order} (${resultText})`);
+        }
         refreshDashboardData();
+        if (currentModalStudentId === d.user_id) {
+            openStudentModal(d.user_id);
+        }
     } else if (msg.event === "presence_update") {
         const d = msg.data;
         if (!d.is_tab_active) {
             showLiveToast(`Учень <strong>${d.student_name}</strong> згорнув вкладку або відволікся ⚠️`);
         }
         refreshDashboardData();
+    } else if (msg.event === "student_progress_reset") {
+        const d = msg.data;
+        showLiveToast(`Прогрес учня <strong>${d.student_name}</strong> скинуто вчителем 🔄`);
+        refreshDashboardData();
+        if (currentModalStudentId === d.user_id) {
+            openStudentModal(d.user_id);
+        }
     }
 }

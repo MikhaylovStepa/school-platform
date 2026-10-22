@@ -367,8 +367,46 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     await loadTopicData();
     setupPresenceTracking();
+    connectStudentWebSocket();
     renderSlide(0);
 });
+
+let studentWs = null;
+let currentFactorizationState = {
+    originalNumber: 0,
+    factors: []
+};
+
+function connectStudentWebSocket() {
+    if (!currentUser || !currentRoomCode) return;
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/ws/room/${currentRoomCode}/student/${currentUser.user_id}`;
+
+    try {
+        studentWs = new WebSocket(wsUrl);
+
+        studentWs.onmessage = (event) => {
+            try {
+                const msg = JSON.parse(event.data);
+                if (msg.event === "student_progress_reset" && msg.data.user_id === currentUser.user_id) {
+                    const toastMsg = msg.data.is_full_reset
+                        ? "Вчитель скинув ваш прогрес у цьому кабінеті. Ви можете пройти завдання заново! 🔄"
+                        : "Вчитель скинув спроби для завдання. Ви можете спробувати знову! 🔄";
+                    alert(toastMsg);
+                    loadTopicData();
+                }
+            } catch (e) {
+                console.error("Student WS Parse error:", e);
+            }
+        };
+
+        studentWs.onclose = () => {
+            setTimeout(connectStudentWebSocket, 4000);
+        };
+    } catch (err) {
+        console.warn("WS connect failed:", err);
+    }
+}
 
 async function loadTopicData() {
     try {
@@ -410,7 +448,7 @@ async function loadTopicData() {
 
 function configureTopicWorkspace() {
     const isTextFormatsLesson = currentRoomCode === "info-9-formats";
-    const isArchiveOperationsLesson = currentRoomCode === "info-8-archive-operations";
+    const isArchiveOperationsLesson = currentRoomCode === "info-8-archive-operations" || currentRoomCode === "info-8-final-archives";
     const isDocumentLayoutLesson = currentRoomCode === "info-9-document-layout";
     slidesData = isTextFormatsLesson ? slidesData9 : slidesData8;
     currentSlideIndex = 0;
@@ -852,12 +890,24 @@ function renderActiveTask() {
     const signToggleBtn = document.getElementById("sign-toggle-btn");
     const mathKeypad = document.getElementById("math-keypad-container");
     const choiceContainer = document.getElementById("choice-options-container");
+    const signSequenceContainer = document.getElementById("sign-sequence-container");
+    const primeFactorContainer = document.getElementById("prime-factorization-container");
     const feedbackBox = document.getElementById("feedback-box");
     const activeCard = document.getElementById("active-task-card");
     const submitBtn = document.getElementById("submit-btn");
     const nextBtn = document.getElementById("next-task-btn");
     const statusBadge = document.getElementById("task-status-badge");
     const attemptsIndicator = document.getElementById("task-attempts-indicator");
+
+    // Reset default visibility & input attributes
+    if (signSequenceContainer) signSequenceContainer.classList.add("hidden");
+    if (primeFactorContainer) primeFactorContainer.classList.add("hidden");
+    if (choiceContainer) choiceContainer.classList.add("hidden");
+    if (inputGroupContainer) inputGroupContainer.classList.remove("hidden");
+    if (mathKeypad) mathKeypad.classList.add("hidden");
+    if (signToggleBtn) signToggleBtn.classList.add("hidden");
+    input.readOnly = false;
+    input.removeAttribute("inputmode");
 
     // Set prompt & question
     const isMathTask = task.question.startsWith("Обчисліть: ") || task.question.startsWith("Знайдіть ");
@@ -869,7 +919,7 @@ function renderActiveTask() {
         questionTextEl.textContent = task.question;
     }
 
-    // Parse options if choice task
+    // Parse options if choice / multichoice task
     let options = null;
     if (task.options) {
         try {
@@ -879,22 +929,30 @@ function renderActiveTask() {
         }
     }
 
-    // Render choice options if available
-    if (options && Array.isArray(options) && options.length > 0) {
+    const isMultiChoice = (task.task_type === "multichoice");
+    const isChoice = (task.task_type === "choice") || (options && Array.isArray(options) && options.length > 0 && !isMultiChoice);
+    const isSignSequence = (task.task_type === "sign_sequence") || (currentRoomCode === "math-6-brackets-signs");
+    const isPrimeFactor = (task.task_type === "prime_factorization") || (currentRoomCode === "math-6-prime-factorization");
+
+    if (isChoice || isMultiChoice) {
         choiceContainer.classList.remove("hidden");
         choiceContainer.innerHTML = "";
         if (inputGroupContainer) inputGroupContainer.classList.add("hidden");
-        if (mathKeypad) mathKeypad.classList.add("hidden");
-        if (signToggleBtn) signToggleBtn.classList.add("hidden");
-        
-        const currentSelected = (input.value || task.last_answer || "").trim().toUpperCase();
+
+        const rawVal = (input.value || task.last_answer || "").trim().toUpperCase();
+        let selectedKeys = [];
+        if (isMultiChoice) {
+            selectedKeys = rawVal.split(/[\s,]+/).filter(Boolean);
+        } else {
+            selectedKeys = rawVal ? [rawVal] : [];
+        }
 
         options.forEach(opt => {
             const optBtn = document.createElement("button");
             optBtn.type = "button";
-            optBtn.onclick = () => selectChoiceOption(opt.key);
-            
-            const isSelected = (currentSelected === opt.key.toUpperCase());
+            optBtn.onclick = () => isMultiChoice ? toggleMultiChoiceOption(opt.key) : selectChoiceOption(opt.key);
+
+            const isSelected = selectedKeys.includes(opt.key.toUpperCase());
             optBtn.className = `p-4 rounded-2xl border-2 text-left transition-all flex items-start gap-3.5 cursor-pointer ${
                 isSelected 
                 ? 'border-brand-500 bg-brand-50/90 shadow-md ring-4 ring-brand-500/20 text-brand-950 font-bold scale-[1.01]' 
@@ -913,17 +971,32 @@ function renderActiveTask() {
             `;
             choiceContainer.appendChild(optBtn);
         });
+
+        if (isMultiChoice) {
+            const multiHint = document.createElement("div");
+            multiHint.className = "text-center text-xs font-semibold text-slate-500 pt-1";
+            multiHint.innerHTML = `💡 <em>Можна обрати декілька правильних відповідей. Обрано: <strong>${selectedKeys.length > 0 ? selectedKeys.join(", ") : "жодної"}</strong></em>`;
+            choiceContainer.appendChild(multiHint);
+        }
+    } else if (isSignSequence) {
+        if (inputGroupContainer) inputGroupContainer.classList.remove("hidden");
+        if (signSequenceContainer) signSequenceContainer.classList.remove("hidden");
+        input.placeholder = "Послідовність знаків (напр. ---)";
+        input.readOnly = true;
+        input.setAttribute("inputmode", "none");
+    } else if (isPrimeFactor) {
+        if (inputGroupContainer) inputGroupContainer.classList.remove("hidden");
+        if (primeFactorContainer) primeFactorContainer.classList.remove("hidden");
+        input.placeholder = "Прості множники (напр. 2, 2, 2, 3, 3, 7)";
+        setupPrimeFactorizationState(task);
     } else {
-        choiceContainer.classList.add("hidden");
         if (inputGroupContainer) inputGroupContainer.classList.remove("hidden");
         if (isMathTask) {
             if (mathKeypad) mathKeypad.classList.remove("hidden");
             if (signToggleBtn) signToggleBtn.classList.remove("hidden");
             input.placeholder = "Ваше число";
         } else {
-            if (mathKeypad) mathKeypad.classList.add("hidden");
-            if (signToggleBtn) signToggleBtn.classList.add("hidden");
-            input.placeholder = "Введіть розраховане число або коефіцієнт (напр. 327)";
+            input.placeholder = "Введіть розраховану відповідь (напр. -7a або -5)";
         }
     }
 
@@ -967,6 +1040,188 @@ function selectChoiceOption(key) {
         task.last_answer = key;
     }
     renderActiveTask();
+}
+
+function toggleMultiChoiceOption(key) {
+    const task = tasksList[currentTaskIndex];
+    if (task && task.is_solved) return;
+
+    const input = document.getElementById("answer-input");
+    let currentSelected = (input.value || task?.last_answer || "").split(/[\s,]+/).map(s => s.trim().toUpperCase()).filter(Boolean);
+
+    if (currentSelected.includes(key.toUpperCase())) {
+        currentSelected = currentSelected.filter(k => k !== key.toUpperCase());
+    } else {
+        currentSelected.push(key.toUpperCase());
+    }
+
+    currentSelected.sort();
+    const formatted = currentSelected.join(", ");
+    input.value = formatted;
+    if (task) {
+        task.last_answer = formatted;
+    }
+    renderActiveTask();
+}
+
+function appendSign(sign) {
+    const task = tasksList[currentTaskIndex];
+    if (task && task.is_solved) return;
+    const input = document.getElementById("answer-input");
+    input.value += sign;
+    if (task) {
+        task.last_answer = input.value;
+    }
+}
+
+function setupPrimeFactorizationState(task) {
+    const match = task.question.match(/\b(\d+)\b/);
+    const startNum = match ? parseInt(match[1], 10) : 504;
+    
+    currentFactorizationState.originalNumber = startNum;
+    
+    if (task.last_answer && !task.last_answer.includes("множник") && !task.last_answer.includes("помилка") && !task.last_answer.includes("Невірний")) {
+        const parsed = task.last_answer.split(/[\s,·*]+/).map(n => parseInt(n, 10)).filter(n => !isNaN(n) && n > 1);
+        currentFactorizationState.factors = parsed;
+    } else {
+        currentFactorizationState.factors = [];
+    }
+    
+    renderPrimeFactorLadder();
+}
+
+function renderPrimeFactorLadder() {
+    const container = document.getElementById("factorization-ladder-rows");
+    if (!container) return;
+    container.innerHTML = "";
+
+    let cur = currentFactorizationState.originalNumber || 504;
+    const factors = currentFactorizationState.factors || [];
+
+    factors.forEach((f) => {
+        const row = document.createElement("div");
+        row.className = "flex items-center justify-between py-1 px-2";
+        row.innerHTML = `
+            <span class="text-slate-900 w-24 text-right pr-3 font-mono">${cur}</span>
+            <span class="text-slate-400 font-normal">|</span>
+            <span class="text-indigo-600 w-16 text-left pl-3 font-mono font-black">${f}</span>
+        `;
+        container.appendChild(row);
+        cur = Math.floor(cur / f);
+    });
+
+    const finalRow = document.createElement("div");
+    finalRow.className = "flex items-center justify-between py-1 px-2";
+    if (cur === 1) {
+        finalRow.innerHTML = `
+            <span class="text-emerald-600 font-black w-24 text-right pr-3 font-mono">1</span>
+            <span class="text-slate-400 font-normal">|</span>
+            <span class="text-emerald-600 text-xs w-16 text-left pl-3 font-sans font-bold">Готово ✅</span>
+        `;
+    } else {
+        finalRow.innerHTML = `
+            <span class="text-slate-900 w-24 text-right pr-3 font-mono">${cur}</span>
+            <span class="text-slate-400 font-normal">|</span>
+            <span class="text-slate-300 w-16 text-left pl-3 font-mono">?</span>
+        `;
+    }
+    container.appendChild(finalRow);
+
+    const input = document.getElementById("answer-input");
+    if (input) {
+        input.value = factors.join(", ");
+        const task = tasksList[currentTaskIndex];
+        if (task && factors.length > 0) task.last_answer = input.value;
+    }
+}
+
+async function addPrimeFactor(prime) {
+    const task = tasksList[currentTaskIndex];
+    if (task && task.is_solved) return;
+
+    let cur = currentFactorizationState.originalNumber || 504;
+    (currentFactorizationState.factors || []).forEach(f => {
+        cur = Math.floor(cur / f);
+    });
+
+    if (cur <= 1) {
+        return;
+    }
+
+    if (cur % prime !== 0) {
+        const errorMsg = `Число ${cur} не ділиться націло на ${prime}. Спробуйте інший дільник!`;
+        showFeedback(false, errorMsg, null);
+        const errDetail = `Невірний множник: ${prime} для числа ${cur} (не ділиться націло)`;
+        await reportFactorError(task, prime, cur, errDetail, errorMsg);
+        return;
+    }
+
+    // Check prime ordering (from smallest prime factor to largest)
+    const primeCheckList = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47];
+    const smallerPrime = primeCheckList.find(p => p < prime && (cur % p === 0));
+    if (smallerPrime) {
+        const errorMsg = `Число ${cur} ще ділиться на менший простий множник (${smallerPrime}). Дотримуйтесь порядку від меншого до більшого!`;
+        showFeedback(false, errorMsg, `Спробуйте спочатку ${smallerPrime}`);
+        const errDetail = `Невірний порядок: обрано множник ${prime} для числа ${cur} (найменший дільник: ${smallerPrime})`;
+        await reportFactorError(task, prime, cur, errDetail, errorMsg);
+        return;
+    }
+
+    currentFactorizationState.factors.push(prime);
+    renderPrimeFactorLadder();
+    const feedbackBox = document.getElementById("feedback-box");
+    if (feedbackBox) feedbackBox.classList.add("hidden");
+
+    let newCur = cur / prime;
+    if (newCur === 1) {
+        showFeedback(true, "Усі прості множники внесено! Натисніть кнопку 'Відповісти' для збереження результату.", null);
+    }
+}
+
+async function reportFactorError(task, prime, cur, errDetail, uiMessage) {
+    if (!task || !currentUser) return;
+    
+    try {
+        const resp = await fetch("/api/tasks/submit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                user_id: currentUser.user_id,
+                task_id: task.id,
+                submitted_answer: errDetail,
+                room_code: currentRoomCode
+            })
+        });
+        if (resp.ok) {
+            const data = await resp.json();
+            task.attempts_count = data.attempt_number;
+            task.last_answer = errDetail;
+            task.last_is_correct = false;
+            
+            const attemptsIndicator = document.getElementById("task-attempts-indicator");
+            if (attemptsIndicator) {
+                attemptsIndicator.textContent = `Спроб: ${task.attempts_count}`;
+            }
+            const statusBadge = document.getElementById("task-status-badge");
+            if (statusBadge) {
+                statusBadge.className = "text-xs font-bold px-3 py-1 rounded-full bg-rose-100 text-rose-800 border border-rose-200";
+                statusBadge.textContent = "❌ Невірний множник";
+            }
+            renderTaskNavPills();
+        }
+    } catch (err) {
+        console.error("Failed to report factor error:", err);
+    }
+}
+
+function undoPrimeFactor() {
+    const task = tasksList[currentTaskIndex];
+    if (task && task.is_solved) return;
+
+    if (currentFactorizationState.factors && currentFactorizationState.factors.length > 0) {
+        currentFactorizationState.factors.pop();
+        renderPrimeFactorLadder();
+    }
 }
 
 function showFeedback(isCorrect, message, hint) {

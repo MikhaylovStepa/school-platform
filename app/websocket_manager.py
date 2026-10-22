@@ -46,4 +46,28 @@ class ConnectionManager:
             for ws in dead_sockets:
                 self.teacher_connections[room_code].discard(ws)
 
+    async def broadcast_to_room_students(self, room_code: str, event_type: str, data: Any):
+        if room_code in self.student_connections:
+            payload = json.dumps({"event": event_type, "data": data})
+            dead_users = []
+            for uid, ws in self.student_connections[room_code].items():
+                try:
+                    await ws.send_text(payload)
+                except Exception:
+                    dead_users.append(uid)
+            for uid in dead_users:
+                self.student_connections[room_code].pop(uid, None)
+
+    async def send_to_student(self, room_code: str, user_id: int, event_type: str, data: Any):
+        if room_code in self.student_connections and user_id in self.student_connections[room_code]:
+            payload = json.dumps({"event": event_type, "data": data})
+            try:
+                await self.student_connections[room_code][user_id].send_text(payload)
+            except Exception:
+                self.student_connections[room_code].pop(user_id, None)
+
+    async def broadcast_to_room(self, room_code: str, event_type: str, data: Any):
+        await self.broadcast_to_room_teachers(room_code, event_type, data)
+        await self.broadcast_to_room_students(room_code, event_type, data)
+
 manager = ConnectionManager()

@@ -5,6 +5,7 @@ from sqlalchemy import func
 import datetime
 from app.database import get_db
 from app.models import Topic, Task, TaskAttempt, User, StudentPresence
+from app.websocket_manager import manager
 
 router = APIRouter(prefix="/api/teacher", tags=["teacher"])
 
@@ -156,4 +157,64 @@ def get_room_dashboard(
         "online_count": sum(1 for s in filtered_students if s["is_online"]),
         "active_tab_count": sum(1 for s in filtered_students if s["is_online"] and s["is_tab_active"]),
         "total_students": len(filtered_students)
+    }
+
+
+@router.post("/rooms/{room_code}/students/{user_id}/reset")
+async def reset_student_progress(
+    room_code: str,
+    user_id: int,
+    task_id: Optional[int] = Query(None, description="Опціональний ID конкретного завдання для скидання"),
+    db: Session = Depends(get_db)
+):
+    topic = db.query(Topic).filter_by(room_code=room_code).first()
+    if not topic:
+        raise HTTPException(status_code=404, detail="Кабінет теми не знайдено")
+    
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Учня не знайдено")
+    
+    tasks = db.query(Task).filter_by(topic_id=topic.id).all()
+    topic_task_ids = [t.id for t in tasks]
+
+    if task_id:
+        if task_id not in topic_task_ids:
+            raise HTTPException(status_code=400, detail="Завдання не належить до цієї теми")
+        deleted_count = db.query(TaskAttempt).filter(
+            TaskAttempt.user_id == user_id,
+            TaskAttempt.task_id == task_id
+        ).delete(synchronize_session=False)
+    else:
+        deleted_count = db.query(TaskAttempt).filter(
+            TaskAttempt.user_id == user_id,
+            TaskAttempt.task_id.in_(topic_task_ids)
+        ).delete(synchronize_session=False)
+        
+        # Reset current task in presence
+        presence = db.query(StudentPresence).filter_by(user_id=user_id, topic_id=topic.id).first()
+        if presence and topic_task_ids:
+            first_task = sorted(tasks, key=lambda t: t.task_order)[0]
+            presence.current_task_id = first_task.id
+            presence.updated_at = datetime.datetime.utcnow()
+
+    db.commit()
+
+    # Broadcast reset event to both teachers and students
+    reset_data = {
+        "user_id": user_id,
+        "student_name": user.name,
+        "room_code": room_code,
+        "task_id": task_id,
+        "is_full_reset": task_id is None,
+        "deleted_attempts": deleted_count,
+        "timestamp": datetime.datetime.utcnow().isoformat()
+    }
+    await manager.broadcast_to_room(room_code, "student_progress_reset", reset_data)
+
+    return {
+        "success": True,
+        "message": f"Прогрес учня {user.name} успішно скинуто",
+        "deleted_attempts": deleted_count,
+        "task_id": task_id
     }

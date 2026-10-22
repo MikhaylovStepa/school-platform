@@ -37,7 +37,7 @@ class TestSchoolPlatform(unittest.TestCase):
         
         math = next((s for s in grade6["subjects"] if s["slug"] == "math"), None)
         self.assertIsNotNone(math)
-        self.assertEqual(len(math["topics"]), 15)
+        self.assertEqual(len(math["topics"]), 20)
 
         expected_room_codes = {
             "math-6-add", "math-6-add-2", "math-6-add-3",
@@ -45,20 +45,33 @@ class TestSchoolPlatform(unittest.TestCase):
             "math-6-mixed", "math-6-mixed-2", "math-6-mixed-3",
             "math-6-mul-1", "math-6-mul-2",
             "math-6-div-1", "math-6-div-2",
-            "math-6-abs", "math-6-opp"
+            "math-6-abs", "math-6-opp",
+            "math-6-coefficient", "math-6-brackets-signs",
+            "math-6-combining-like-terms", "math-6-divisibility",
+            "math-6-prime-factorization"
         }
         actual_room_codes = {t["room_code"] for t in math["topics"]}
         self.assertTrue(expected_room_codes.issubset(actual_room_codes))
 
-        # Check each topic has exactly 20 tasks
         for topic in math["topics"]:
-            self.assertEqual(topic["tasks_count"], 20)
+            if topic["room_code"] == "math-6-prime-factorization":
+                self.assertEqual(topic["tasks_count"], 5)
+            else:
+                self.assertEqual(topic["tasks_count"], 20)
 
     def test_02_task_constraints_and_correctness(self):
         db = SessionLocal()
         math_subject = db.query(Subject).filter_by(slug="math").first()
-        tasks = db.query(Task).join(Topic).filter(Topic.subject_id == math_subject.id).all()
-        self.assertGreaterEqual(len(tasks), 300)
+        arithmetic_topics = [
+            "math-6-add", "math-6-add-2", "math-6-add-3",
+            "math-6-sub", "math-6-sub-2", "math-6-sub-3",
+            "math-6-mixed", "math-6-mixed-2", "math-6-mixed-3",
+            "math-6-mul-1", "math-6-mul-2",
+            "math-6-div-1", "math-6-div-2",
+            "math-6-abs", "math-6-opp"
+        ]
+        tasks = db.query(Task).join(Topic).filter(Topic.subject_id == math_subject.id, Topic.room_code.in_(arithmetic_topics)).all()
+        self.assertEqual(len(tasks), 300)
 
         for t in tasks:
             correct_ans = int(t.correct_answer)
@@ -479,6 +492,227 @@ class TestSchoolPlatform(unittest.TestCase):
         })
         self.assertEqual(sub_resp.status_code, 200)
         self.assertTrue(sub_resp.json()["is_correct"])
+
+    def test_12_grade_8_final_archives_and_reset_progress(self):
+        # 1. Verify Topic & 20 tasks exist for info-8-final-archives
+        hierarchy = self.client.get("/api/hierarchy")
+        self.assertEqual(hierarchy.status_code, 200)
+        grade8 = next((g for g in hierarchy.json()["grades"] if g["slug"] == "grade-8"), None)
+        self.assertIsNotNone(grade8)
+        informatics = next((s for s in grade8["subjects"] if s["slug"] == "informatics"), None)
+        self.assertIsNotNone(informatics)
+        topic = next((t for t in informatics["topics"] if t["room_code"] == "info-8-final-archives"), None)
+        self.assertIsNotNone(topic)
+        self.assertEqual(topic["tasks_count"], 20)
+
+        # 2. Authenticate student
+        device_id = f"test-dev-{uuid.uuid4()}"
+        auth_resp = self.client.post("/api/auth/student-session", json={
+            "name": "Учень 8 класу (Підсумковий)",
+            "device_id": device_id,
+            "grade_level": 8,
+            "class_letter": "А"
+        })
+        self.assertEqual(auth_resp.status_code, 200)
+        user_id = auth_resp.json()["user_id"]
+
+        # 3. Fetch topic tasks
+        tasks_resp = self.client.get(f"/api/tasks/topic/info-8-final-archives?user_id={user_id}")
+        self.assertEqual(tasks_resp.status_code, 200)
+        tasks = tasks_resp.json()["tasks"]
+        self.assertEqual(len(tasks), 20)
+
+        # 4. Submit answers for first 3 tasks
+        for t in tasks[:3]:
+            sub_resp = self.client.post("/api/tasks/submit", json={
+                "user_id": user_id,
+                "task_id": t["id"],
+                "submitted_answer": "A",
+                "room_code": "info-8-final-archives"
+            })
+            self.assertEqual(sub_resp.status_code, 200)
+            self.assertTrue(sub_resp.json()["is_correct"])
+
+        # Check dashboard shows solved_count = 3
+        dash_resp = self.client.get("/api/teacher/rooms/info-8-final-archives/dashboard")
+        self.assertEqual(dash_resp.status_code, 200)
+        student_data = next((s for s in dash_resp.json()["students"] if s["user_id"] == user_id), None)
+        self.assertIsNotNone(student_data)
+        self.assertEqual(student_data["solved_count"], 3)
+
+        # 5. Teacher resets progress for this student
+        reset_resp = self.client.post(f"/api/teacher/rooms/info-8-final-archives/students/{user_id}/reset")
+        self.assertEqual(reset_resp.status_code, 200)
+        self.assertTrue(reset_resp.json()["success"])
+        self.assertEqual(reset_resp.json()["deleted_attempts"], 3)
+
+        # 6. Verify dashboard and student task list are reset
+        dash_resp_after = self.client.get("/api/teacher/rooms/info-8-final-archives/dashboard")
+        student_data_after = next((s for s in dash_resp_after.json()["students"] if s["user_id"] == user_id), None)
+        self.assertIsNotNone(student_data_after)
+        self.assertEqual(student_data_after["solved_count"], 0)
+        self.assertEqual(student_data_after["total_attempts"], 0)
+
+        tasks_resp_after = self.client.get(f"/api/tasks/topic/info-8-final-archives?user_id={user_id}")
+        self.assertFalse(any(t["is_solved"] for t in tasks_resp_after.json()["tasks"]))
+
+    def test_13_grade_6_advanced_math_cabinets(self):
+        device_id = f"test-dev-{uuid.uuid4()}"
+        auth_resp = self.client.post("/api/auth/student-session", json={
+            "name": "Учень 6 класу (Математика)",
+            "device_id": device_id,
+            "grade_level": 6,
+            "class_letter": "В"
+        })
+        self.assertEqual(auth_resp.status_code, 200)
+        user_id = auth_resp.json()["user_id"]
+
+        # 1. Topic: Coefficient of Expression (math-6-coefficient)
+        t1_resp = self.client.get(f"/api/tasks/topic/math-6-coefficient?user_id={user_id}")
+        self.assertEqual(t1_resp.status_code, 200)
+        t1_tasks = t1_resp.json()["tasks"]
+        self.assertEqual(len(t1_tasks), 20)
+        sub1 = self.client.post("/api/tasks/submit", json={
+            "user_id": user_id,
+            "task_id": t1_tasks[0]["id"],
+            "submitted_answer": "-5",
+            "room_code": "math-6-coefficient"
+        })
+        self.assertTrue(sub1.json()["is_correct"])
+
+        # 2. Topic: Opening Brackets Signs (math-6-brackets-signs)
+        t2_resp = self.client.get(f"/api/tasks/topic/math-6-brackets-signs?user_id={user_id}")
+        self.assertEqual(t2_resp.status_code, 200)
+        t2_tasks = t2_resp.json()["tasks"]
+        self.assertEqual(len(t2_tasks), 20)
+        sub2 = self.client.post("/api/tasks/submit", json={
+            "user_id": user_id,
+            "task_id": t2_tasks[0]["id"],
+            "submitted_answer": "---",
+            "room_code": "math-6-brackets-signs"
+        })
+        self.assertTrue(sub2.json()["is_correct"])
+
+        # 3. Topic: Combining Like Terms (math-6-combining-like-terms)
+        t3_resp = self.client.get(f"/api/tasks/topic/math-6-combining-like-terms?user_id={user_id}")
+        self.assertEqual(t3_resp.status_code, 200)
+        t3_tasks = t3_resp.json()["tasks"]
+        self.assertEqual(len(t3_tasks), 20)
+        sub3 = self.client.post("/api/tasks/submit", json={
+            "user_id": user_id,
+            "task_id": t3_tasks[0]["id"],
+            "submitted_answer": "-7a",
+            "room_code": "math-6-combining-like-terms"
+        })
+        self.assertTrue(sub3.json()["is_correct"])
+
+        # 4. Topic: Divisibility Rules (math-6-divisibility)
+        t4_resp = self.client.get(f"/api/tasks/topic/math-6-divisibility?user_id={user_id}")
+        self.assertEqual(t4_resp.status_code, 200)
+        t4_tasks = t4_resp.json()["tasks"]
+        self.assertEqual(len(t4_tasks), 20)
+        sub4 = self.client.post("/api/tasks/submit", json={
+            "user_id": user_id,
+            "task_id": t4_tasks[0]["id"],
+            "submitted_answer": "A, C",
+            "room_code": "math-6-divisibility"
+        })
+        self.assertTrue(sub4.json()["is_correct"])
+
+        # 5. Topic: Prime Factorization (math-6-prime-factorization)
+        t5_resp = self.client.get(f"/api/tasks/topic/math-6-prime-factorization?user_id={user_id}")
+        self.assertEqual(t5_resp.status_code, 200)
+        t5_tasks = t5_resp.json()["tasks"]
+        self.assertEqual(len(t5_tasks), 5)
+        sub5 = self.client.post("/api/tasks/submit", json={
+            "user_id": user_id,
+            "task_id": t5_tasks[0]["id"],
+            "submitted_answer": "2, 2, 2, 3, 3, 7",
+            "room_code": "math-6-prime-factorization"
+        })
+        self.assertTrue(sub5.json()["is_correct"])
+
+    def test_14_prime_factorization_incorrect_factor_monitoring(self):
+        device_id = f"test-dev-{uuid.uuid4()}"
+        auth_resp = self.client.post("/api/auth/student-session", json={
+            "name": "Петрик П'яточкин",
+            "device_id": device_id,
+            "grade_level": 6,
+            "class_letter": "А"
+        })
+        self.assertEqual(auth_resp.status_code, 200)
+        user_id = auth_resp.json()["user_id"]
+
+        # Fetch prime factorization tasks
+        tasks_resp = self.client.get(f"/api/tasks/topic/math-6-prime-factorization?user_id={user_id}")
+        self.assertEqual(tasks_resp.status_code, 200)
+        task_504 = tasks_resp.json()["tasks"][0]
+
+        # 1. Student selects an incorrect prime factor (e.g. 5 for 504 or 5 for 63)
+        err_msg = "Невірний множник: 5 для числа 63 (не ділиться націло)"
+        err_sub = self.client.post("/api/tasks/submit", json={
+            "user_id": user_id,
+            "task_id": task_504["id"],
+            "submitted_answer": err_msg,
+            "room_code": "math-6-prime-factorization"
+        })
+        self.assertEqual(err_sub.status_code, 200)
+        self.assertFalse(err_sub.json()["is_correct"])
+        self.assertEqual(err_sub.json()["attempt_number"], 1)
+
+        # 2. Check that teacher dashboard reflects the incorrect factor attempt immediately
+        dash_resp = self.client.get("/api/teacher/rooms/math-6-prime-factorization/dashboard")
+        self.assertEqual(dash_resp.status_code, 200)
+        dash_data = dash_resp.json()
+        student_entry = next((s for s in dash_data["students"] if s["user_id"] == user_id), None)
+        self.assertIsNotNone(student_entry)
+        self.assertEqual(student_entry["total_attempts"], 1)
+        self.assertEqual(student_entry["solved_count"], 0)
+
+        task_progress = next((tp for tp in student_entry["tasks_progress"] if tp["task_id"] == task_504["id"]), None)
+        self.assertIsNotNone(task_progress)
+        self.assertFalse(task_progress["is_solved"])
+        self.assertEqual(task_progress["attempt_count"], 1)
+        self.assertFalse(task_progress["last_is_correct"])
+        self.assertEqual(task_progress["last_answer"], err_msg)
+        self.assertEqual(len(task_progress["history"]), 1)
+        self.assertEqual(task_progress["history"][0]["submitted_answer"], err_msg)
+        self.assertFalse(task_progress["history"][0]["is_correct"])
+
+        # 3. Student selects another factor violating order (e.g. 7 before 3)
+        err_order_msg = "Невірний порядок: обрано множник 7 для числа 63 (найменший дільник: 3)"
+        err_order_sub = self.client.post("/api/tasks/submit", json={
+            "user_id": user_id,
+            "task_id": task_504["id"],
+            "submitted_answer": err_order_msg,
+            "room_code": "math-6-prime-factorization"
+        })
+        self.assertEqual(err_order_sub.status_code, 200)
+        self.assertFalse(err_order_sub.json()["is_correct"])
+        self.assertEqual(err_order_sub.json()["attempt_number"], 2)
+
+        # 4. Student now provides the correct full factorization
+        correct_sub = self.client.post("/api/tasks/submit", json={
+            "user_id": user_id,
+            "task_id": task_504["id"],
+            "submitted_answer": "2, 2, 2, 3, 3, 7",
+            "room_code": "math-6-prime-factorization"
+        })
+        self.assertEqual(correct_sub.status_code, 200)
+        self.assertTrue(correct_sub.json()["is_correct"])
+        self.assertEqual(correct_sub.json()["attempt_number"], 3)
+
+        # 5. Teacher dashboard shows solved task with full attempt history
+        dash_resp2 = self.client.get("/api/teacher/rooms/math-6-prime-factorization/dashboard")
+        student_entry2 = next((s for s in dash_resp2.json()["students"] if s["user_id"] == user_id), None)
+        self.assertEqual(student_entry2["solved_count"], 1)
+        self.assertEqual(student_entry2["total_attempts"], 3)
+        tp2 = next((tp for tp in student_entry2["tasks_progress"] if tp["task_id"] == task_504["id"]), None)
+        self.assertTrue(tp2["is_solved"])
+        self.assertEqual(len(tp2["history"]), 3)
+        self.assertEqual(tp2["history"][0]["submitted_answer"], err_msg)
+        self.assertEqual(tp2["history"][1]["submitted_answer"], err_order_msg)
+        self.assertEqual(tp2["history"][2]["submitted_answer"], "2, 2, 2, 3, 3, 7")
 
 if __name__ == "__main__":
     unittest.main()
