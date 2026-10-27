@@ -37,7 +37,7 @@ class TestSchoolPlatform(unittest.TestCase):
         
         math = next((s for s in grade6["subjects"] if s["slug"] == "math"), None)
         self.assertIsNotNone(math)
-        self.assertEqual(len(math["topics"]), 20)
+        self.assertEqual(len(math["topics"]), 22)
 
         expected_room_codes = {
             "math-6-add", "math-6-add-2", "math-6-add-3",
@@ -48,7 +48,7 @@ class TestSchoolPlatform(unittest.TestCase):
             "math-6-abs", "math-6-opp",
             "math-6-coefficient", "math-6-brackets-signs",
             "math-6-combining-like-terms", "math-6-divisibility",
-            "math-6-prime-factorization"
+            "math-6-prime-factorization", "math-6-control-1", "math-6-control-2"
         }
         actual_room_codes = {t["room_code"] for t in math["topics"]}
         self.assertTrue(expected_room_codes.issubset(actual_room_codes))
@@ -56,6 +56,10 @@ class TestSchoolPlatform(unittest.TestCase):
         for topic in math["topics"]:
             if topic["room_code"] == "math-6-prime-factorization":
                 self.assertEqual(topic["tasks_count"], 5)
+            elif topic["room_code"] == "math-6-control-1":
+                self.assertEqual(topic["tasks_count"], 17)
+            elif topic["room_code"] == "math-6-control-2":
+                self.assertEqual(topic["tasks_count"], 23)
             else:
                 self.assertEqual(topic["tasks_count"], 20)
 
@@ -713,6 +717,189 @@ class TestSchoolPlatform(unittest.TestCase):
         self.assertEqual(tp2["history"][0]["submitted_answer"], err_msg)
         self.assertEqual(tp2["history"][1]["submitted_answer"], err_order_msg)
         self.assertEqual(tp2["history"][2]["submitted_answer"], "2, 2, 2, 3, 3, 7")
+
+    def test_15_math_6_control_work_flow(self):
+        device_id = f"test-dev-{uuid.uuid4()}"
+        auth_resp = self.client.post("/api/auth/student-session", json={
+            "name": "Оксана Коваленко",
+            "device_id": device_id,
+            "grade_level": 6,
+            "class_letter": "А"
+        })
+        self.assertEqual(auth_resp.status_code, 200)
+        user_id = auth_resp.json()["user_id"]
+
+        # Fetch control work tasks
+        tasks_resp = self.client.get(f"/api/tasks/topic/math-6-control-1?user_id={user_id}")
+        self.assertEqual(tasks_resp.status_code, 200)
+        tasks = tasks_resp.json()["tasks"]
+        self.assertEqual(len(tasks), 17)
+
+        # Task 1: Multichoice integers (10 options)
+        t1 = tasks[0]
+        self.assertEqual(t1["task_type"], "multichoice")
+        sub1 = self.client.post("/api/tasks/submit", json={
+            "user_id": user_id,
+            "task_id": t1["id"],
+            "submitted_answer": "A, C, D, F, H, J",
+            "room_code": "math-6-control-1"
+        })
+        self.assertTrue(sub1.json()["is_correct"])
+
+        # Tasks 2-4: Number line point placement (3 tasks: -4, 3, -6)
+        t2, t3, t4 = tasks[1], tasks[2], tasks[3]
+        for t, expected in [(t2, "-4"), (t3, "3"), (t4, "-6")]:
+            self.assertEqual(t["task_type"], "number_line_point")
+            sub = self.client.post("/api/tasks/submit", json={
+                "user_id": user_id,
+                "task_id": t["id"],
+                "submitted_answer": expected,
+                "room_code": "math-6-control-1"
+            })
+            self.assertTrue(sub.json()["is_correct"])
+
+        # Tasks 5-7: What is the coordinate of point (3 tasks: -5, 4, -2)
+        t5, t6, t7 = tasks[4], tasks[5], tasks[6]
+        for t, expected in [(t5, "-5"), (t6, "4"), (t7, "-2")]:
+            self.assertEqual(t["task_type"], "number_line_read")
+            sub = self.client.post("/api/tasks/submit", json={
+                "user_id": user_id,
+                "task_id": t["id"],
+                "submitted_answer": expected,
+                "room_code": "math-6-control-1"
+            })
+            self.assertTrue(sub.json()["is_correct"])
+
+        # Task 8: Midpoint of segment on number line (midpoint of -7 and 3 is -2)
+        t8 = tasks[7]
+        self.assertEqual(t8["task_type"], "number_line_midpoint")
+        sub8 = self.client.post("/api/tasks/submit", json={
+            "user_id": user_id,
+            "task_id": t8["id"],
+            "submitted_answer": "-2",
+            "room_code": "math-6-control-1"
+        })
+        self.assertTrue(sub8.json()["is_correct"])
+
+        # Tasks 9-16: 8 arithmetic tasks with integers (-10..10 / addition-subtraction -20..20, one modulo)
+        arith_answers = ["-19", "7", "-13", "5", "-56", "54", "-9", "24"]
+        for idx, expected in enumerate(arith_answers, start=8):
+            t = tasks[idx]
+            self.assertEqual(t["task_type"], "input_number")
+            sub = self.client.post("/api/tasks/submit", json={
+                "user_id": user_id,
+                "task_id": t["id"],
+                "submitted_answer": expected,
+                "room_code": "math-6-control-1"
+            })
+            self.assertTrue(sub.json()["is_correct"], f"Failed on arithmetic task {idx+1}: expected {expected}, got {sub.json()}")
+
+        # Task 17: Rectangle on coordinate plane, perimeter and area
+        t17 = tasks[16]
+        self.assertEqual(t17["task_type"], "coordinate_plane_rect")
+        sub17 = self.client.post("/api/tasks/submit", json={
+            "user_id": user_id,
+            "task_id": t17["id"],
+            "submitted_answer": "P=20, S=24",
+            "room_code": "math-6-control-1"
+        })
+        self.assertTrue(sub17.json()["is_correct"])
+
+        # Verify teacher dashboard reflects 17 solved tasks for this student
+        dash_resp = self.client.get("/api/teacher/rooms/math-6-control-1/dashboard")
+        self.assertEqual(dash_resp.status_code, 200)
+        dash_data = dash_resp.json()
+        student_entry = next((s for s in dash_data["students"] if s["user_id"] == user_id), None)
+        self.assertIsNotNone(student_entry)
+        self.assertEqual(student_entry["solved_count"], 17)
+        self.assertEqual(student_entry["total_attempts"], 17)
+
+    def test_16_math_6_control_work_2_flow(self):
+        # 1. Verify Topic exists in Hierarchy API
+        hierarchy = self.client.get("/api/hierarchy")
+        self.assertEqual(hierarchy.status_code, 200)
+        grade6 = next((g for g in hierarchy.json()["grades"] if g["slug"] == "grade-6"), None)
+        self.assertIsNotNone(grade6)
+        math_subj = next((s for s in grade6["subjects"] if s["slug"] == "math"), None)
+        self.assertIsNotNone(math_subj)
+        topic = next((t for t in math_subj["topics"] if t["room_code"] == "math-6-control-2"), None)
+        self.assertIsNotNone(topic)
+        self.assertEqual(topic["tasks_count"], 23)
+
+        # 2. Authenticate student
+        device_id = f"test-dev-{uuid.uuid4()}"
+        auth_resp = self.client.post("/api/auth/student-session", json={
+            "name": "Богдан Шевченко",
+            "device_id": device_id,
+            "grade_level": 6,
+            "class_letter": "Б"
+        })
+        self.assertEqual(auth_resp.status_code, 200)
+        user_id = auth_resp.json()["user_id"]
+
+        # 3. Fetch control work 2 tasks
+        tasks_resp = self.client.get(f"/api/tasks/topic/math-6-control-2?user_id={user_id}")
+        self.assertEqual(tasks_resp.status_code, 200)
+        tasks = tasks_resp.json()["tasks"]
+        self.assertEqual(len(tasks), 23)
+
+        # 4. Tasks 1-20: Arithmetic with integers
+        arithmetic_expected = [
+            "-18", "-5", "-11", "9", "-20", "7", "-11", "5", "-19", "17",
+            "-7", "-20", "-42", "-40", "36", "56", "-4", "5", "-7", "-8"
+        ]
+        for i in range(20):
+            t = tasks[i]
+            expected = arithmetic_expected[i]
+            sub = self.client.post("/api/tasks/submit", json={
+                "user_id": user_id,
+                "task_id": t["id"],
+                "submitted_answer": expected,
+                "room_code": "math-6-control-2"
+            })
+            self.assertTrue(sub.json()["is_correct"], f"Task {i+1} failed for answer {expected}: {sub.json()}")
+
+        # 5. Task 21: Equation with module |3x - 3| = 9 -> roots 4 and -2 (test order independence: "-2; 4")
+        t21 = tasks[20]
+        self.assertEqual(t21["task_order"], 21)
+        sub21 = self.client.post("/api/tasks/submit", json={
+            "user_id": user_id,
+            "task_id": t21["id"],
+            "submitted_answer": "-2; 4",
+            "room_code": "math-6-control-2"
+        })
+        self.assertTrue(sub21.json()["is_correct"])
+
+        # 6. Task 22: Equation (x + 3) * (2x + 6) = 0 -> root -3
+        t22 = tasks[21]
+        self.assertEqual(t22["task_order"], 22)
+        sub22 = self.client.post("/api/tasks/submit", json={
+            "user_id": user_id,
+            "task_id": t22["id"],
+            "submitted_answer": "-3",
+            "room_code": "math-6-control-2"
+        })
+        self.assertTrue(sub22.json()["is_correct"])
+
+        # 7. Task 23: Practical problem -> -10
+        t23 = tasks[22]
+        self.assertEqual(t23["task_order"], 23)
+        sub23 = self.client.post("/api/tasks/submit", json={
+            "user_id": user_id,
+            "task_id": t23["id"],
+            "submitted_answer": "-10",
+            "room_code": "math-6-control-2"
+        })
+        self.assertTrue(sub23.json()["is_correct"])
+
+        # 8. Check Teacher Dashboard
+        dash_resp = self.client.get("/api/teacher/rooms/math-6-control-2/dashboard")
+        self.assertEqual(dash_resp.status_code, 200)
+        dash_data = dash_resp.json()
+        student_entry = next((s for s in dash_data["students"] if s["user_id"] == user_id), None)
+        self.assertIsNotNone(student_entry)
+        self.assertEqual(student_entry["solved_count"], 23)
+        self.assertEqual(student_entry["total_attempts"], 23)
 
 if __name__ == "__main__":
     unittest.main()

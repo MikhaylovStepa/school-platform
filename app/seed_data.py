@@ -13,6 +13,41 @@ def ensure_schema_migrations(db: Session):
     except Exception:
         db.rollback()
 
+def upsert_topic_tasks(db: Session, topic_id: int, tasks_data: list):
+    """
+    Safely seeds or updates tasks for a topic without deleting tasks,
+    preserving Task IDs and existing student progress / TaskAttempt history.
+    """
+    existing_tasks = {t.task_order: t for t in db.query(Task).filter_by(topic_id=topic_id).all()}
+    
+    for item in tasks_data:
+        order = item["task_order"]
+        if order in existing_tasks:
+            t = existing_tasks[order]
+            t.question = item["question"]
+            t.task_type = item["task_type"]
+            t.correct_answer = item["correct_answer"]
+            t.options_json = item.get("options_json")
+            t.hint = item.get("hint")
+        else:
+            t = Task(
+                topic_id=topic_id,
+                task_order=order,
+                question=item["question"],
+                task_type=item["task_type"],
+                correct_answer=item["correct_answer"],
+                options_json=item.get("options_json"),
+                hint=item.get("hint")
+            )
+            db.add(t)
+    
+    max_order = max([item["task_order"] for item in tasks_data]) if tasks_data else 0
+    for order, t in existing_tasks.items():
+        if order > max_order:
+            db.delete(t)
+            
+    db.commit()
+
 def generate_validated_examples():
     """
     Generate 20 examples for each topic adhering strictly to:
@@ -644,25 +679,20 @@ def seed_database(db: Session):
             topic.sort_order = t_meta["sort_order"]
             db.commit()
 
-        # Seed 20 tasks for this topic
-        task_count = db.query(Task).filter_by(topic_id=topic.id).count()
-        if task_count < 20:
-            db.query(Task).filter_by(topic_id=topic.id).delete()
-            db.commit()
-
-            tasks_data = generated_tasks[t_meta["task_key"]]
-            for order, (q_expr, ans, hint) in enumerate(tasks_data, start=1):
-                task = Task(
-                    topic_id=topic.id,
-                    task_order=order,
-                    question=q_expr,
-                    task_type="input_number",
-                    correct_answer=ans,
-                    hint=hint
-                )
-                db.add(task)
-            db.commit()
-            print(f"Seeded 20 tasks for topic: {t_meta['name']}")
+        # Seed/update 20 tasks for this topic safely
+        tasks_data = generated_tasks[t_meta["task_key"]]
+        topic_tasks = [
+            {
+                "task_order": order,
+                "question": q_expr,
+                "task_type": "input_number",
+                "correct_answer": ans,
+                "options_json": None,
+                "hint": hint
+            }
+            for order, (q_expr, ans, hint) in enumerate(tasks_data, start=1)
+        ]
+        upsert_topic_tasks(db, topic.id, topic_tasks)
 
     # =========================================================================
     # 6th Grade Math: Advanced Topics (Coefficients, Brackets, Like Terms, etc.)
@@ -734,18 +764,18 @@ def seed_database(db: Session):
         ("Визначте коефіцієнт виразу: 3.2ab", "3.2", "Числовий множник дорівнює 3.2.")
     ]
 
-    db.query(Task).filter_by(topic_id=coeff_topic.id).delete()
-    for order, (q_text, ans, hint) in enumerate(coeff_tasks_data, start=1):
-        db.add(Task(
-            topic_id=coeff_topic.id,
-            task_order=order,
-            question=q_text,
-            task_type="input_number",
-            correct_answer=ans,
-            hint=hint
-        ))
-    db.commit()
-    print(f"Seeded 20 tasks for topic: {coeff_topic.name}")
+    coeff_tasks = [
+        {
+            "task_order": order,
+            "question": q_text,
+            "task_type": "input_number",
+            "correct_answer": ans,
+            "options_json": None,
+            "hint": hint
+        }
+        for order, (q_text, ans, hint) in enumerate(coeff_tasks_data, start=1)
+    ]
+    upsert_topic_tasks(db, coeff_topic.id, coeff_tasks)
 
     # 2. Opening Brackets Signs
     theory_brackets_signs = """### 📖 Теоретичний матеріал: Розкриття дужок (знаки доданків)
@@ -811,18 +841,18 @@ def seed_database(db: Session):
         ("Визначте послідовність знаків доданків при розкритті дужок:\n-(3x + 4y - 5z)", "--+", "Перед дужками мінус: +3x -> -, +4y -> -, -5z -> + -> --+")
     ]
 
-    db.query(Task).filter_by(topic_id=brackets_topic.id).delete()
-    for order, (q_text, ans, hint) in enumerate(brackets_tasks_data, start=1):
-        db.add(Task(
-            topic_id=brackets_topic.id,
-            task_order=order,
-            question=q_text,
-            task_type="sign_sequence",
-            correct_answer=ans,
-            hint=hint
-        ))
-    db.commit()
-    print(f"Seeded 20 tasks for topic: {brackets_topic.name}")
+    brackets_tasks = [
+        {
+            "task_order": order,
+            "question": q_text,
+            "task_type": "sign_sequence",
+            "correct_answer": ans,
+            "options_json": None,
+            "hint": hint
+        }
+        for order, (q_text, ans, hint) in enumerate(brackets_tasks_data, start=1)
+    ]
+    upsert_topic_tasks(db, brackets_topic.id, brackets_tasks)
 
     # 3. Combining Like Terms
     theory_combining_like_terms = """### 📖 Теоретичний матеріал: Зведення подібних доданків
@@ -890,18 +920,18 @@ def seed_database(db: Session):
         ("Зведіть подібні доданки:\n-11z - 4z", "-15z", "Додайте коефіцієнти: (-11 - 4)z = -15z.")
     ]
 
-    db.query(Task).filter_by(topic_id=terms_topic.id).delete()
-    for order, (q_text, ans, hint) in enumerate(terms_tasks_data, start=1):
-        db.add(Task(
-            topic_id=terms_topic.id,
-            task_order=order,
-            question=q_text,
-            task_type="input_text",
-            correct_answer=ans,
-            hint=hint
-        ))
-    db.commit()
-    print(f"Seeded 20 tasks for topic: {terms_topic.name}")
+    terms_tasks = [
+        {
+            "task_order": order,
+            "question": q_text,
+            "task_type": "input_text",
+            "correct_answer": ans,
+            "options_json": None,
+            "hint": hint
+        }
+        for order, (q_text, ans, hint) in enumerate(terms_tasks_data, start=1)
+    ]
+    upsert_topic_tasks(db, terms_topic.id, terms_tasks)
 
     # 4. Divisibility Rules (2, 3, 5, 9, 10)
     theory_divisibility = """### 📖 Теоретичний матеріал: Ознаки подільності чисел (на 2, 3, 5, 9, 10)
@@ -1028,19 +1058,18 @@ def seed_database(db: Session):
         ], "Числа 1233 (9), 5418 (18) та 2007 (9) мають суми цифр, що діляться на 9.")
     ]
 
-    db.query(Task).filter_by(topic_id=div_topic.id).delete()
-    for order, q_text, ans, opts, hint in div_tasks_data:
-        db.add(Task(
-            topic_id=div_topic.id,
-            task_order=order,
-            question=q_text,
-            task_type="multichoice",
-            correct_answer=ans,
-            options_json=json.dumps(opts, ensure_ascii=False) if opts else None,
-            hint=hint
-        ))
-    db.commit()
-    print(f"Seeded 20 tasks for topic: {div_topic.name}")
+    div_tasks = [
+        {
+            "task_order": order,
+            "question": q_text,
+            "task_type": "multichoice",
+            "correct_answer": ans,
+            "options_json": json.dumps(opts, ensure_ascii=False) if opts else None,
+            "hint": hint
+        }
+        for order, q_text, ans, opts, hint in div_tasks_data
+    ]
+    upsert_topic_tasks(db, div_topic.id, div_tasks)
 
     # 5. Prime Factorization
     theory_prime_factorization = """### 📖 Теоретичний матеріал: Розкладання складених чисел на прості множники
@@ -1096,18 +1125,525 @@ def seed_database(db: Session):
         (5, "Розкладіть складене число 180 на прості множники у стовпчик (вносьте прості дільники від меншого до більшого):\n180", "2, 2, 3, 3, 5", "180 : 2 = 90; 90 : 2 = 45; 45 : 3 = 15; 15 : 3 = 5; 5 : 5 = 1. Множники: 2, 2, 3, 3, 5.")
     ]
 
-    db.query(Task).filter_by(topic_id=factor_topic.id).delete()
-    for order, q_text, ans, hint in factor_tasks_data:
-        db.add(Task(
-            topic_id=factor_topic.id,
-            task_order=order,
-            question=q_text,
-            task_type="prime_factorization",
-            correct_answer=ans,
-            hint=hint
-        ))
-    db.commit()
-    print(f"Seeded 5 tasks for topic: {factor_topic.name}")
+    factor_tasks = [
+        {
+            "task_order": order,
+            "question": q_text,
+            "task_type": "prime_factorization",
+            "correct_answer": ans,
+            "options_json": None,
+            "hint": hint
+        }
+        for order, q_text, ans, hint in factor_tasks_data
+    ]
+    upsert_topic_tasks(db, factor_topic.id, factor_tasks)
+
+    # 6. 6th Grade Math Control Work (Підсумкова контрольна робота за 6 клас)
+    theory_control_work = """### 📝 Підсумкова контрольна робота з математики (6 клас)
+
+---
+
+#### 1. Цілі числа та їх класифікація:
+- **Множина цілих чисел ($\mathbb{Z}$)** складається з натуральних (додатних) чисел ($1, 2, 3...$), протилежних їм чисел ($-1, -2, -3...$) та числа $0$.
+- **Дробові числа** (десяткові дроби $3.4, -2.8$ або звичайні дроби $\\frac{5}{9}$) **не є цілими числами**.
+
+---
+
+#### 2. Модуль числа:
+- **Модуль числа $|a|$** — це відстань від початку відліку до точки $a$ на координатній прямій.
+- $|a| = a$, якщо $a \\ge 0$; $|-a| = a$, якщо $a < 0$.
+- **Приклад:** $|-15| = 15$, $|9| = 9$, $|0| = 0$.
+
+---
+
+#### 3. Координатна пряма:
+- **Координатна пряма** — це пряма з вибраним на ній початком відліку $O(0)$, одиничним відрізком і вказаним додатним напрямком (стрілкою праворуч).
+- **Координата точки** показує положення точки на прямій. Додатні числа розташовані праворуч від $0$, від'ємні — ліворуч.
+- **Середина відрізка:** Якщо кінці відрізка мають координати $x_A$ та $x_B$, то координата середини $C$ обчислюється як півсума:
+  $$x_C = \\frac{x_A + x_B}{2}$$
+
+---
+
+#### 4. Правила дій з цілими числами:
+- **Додавання чисел з однаковими знаками:** додати їх модулі й поставити їх спільний знак:
+  $$(-14) + (-5) = -(14 + 5) = -19$$
+- **Додавання чисел з різними знаками:** від більшого модуля відняти менший і поставити знак доданка з більшим модулем:
+  $$(-8) + 15 = +(15 - 8) = 7$$
+- **Віднімання:** до зменшуваного додати число, протилежне від'ємнику:
+  $$a - b = a + (-b) \\implies 6 - 19 = 6 + (-19) = -13$$
+  $$(-11) - (-16) = (-11) + 16 = 5$$
+- **Множення та ділення:**
+  - Добуток/частка чисел з однаковими знаками є додатним ($+ \\cdot + = +$, $- \\cdot - = +$):
+    $$(-6) \\cdot (-9) = 54$$
+  - Добуток/частка чисел з різними знаками є від'ємним ($+ \\cdot - = -$, $- \\cdot + = -$):
+    $$(-7) \\cdot 8 = -56, \\quad (-45) : 5 = -9$$
+
+---
+
+#### 5. Прямокутник на координатній площині:
+- Кожна точка на площині задається парою координат $(x, y)$, де $x$ — абсциса (по горизонталі), $y$ — ордината (по вертикалі).
+- Для прямокутника зі сторонами, паралельними осям, довжина сторони дорівнює модулю різниці відповідних координат:
+  $$a = |x_2 - x_1|, \\quad b = |y_2 - y_1|$$
+- **Периметр:** $P = 2 \\cdot (a + b)$
+- **Площа:** $S = a \\cdot b$
+"""
+
+    control_topic = db.query(Topic).filter_by(subject_id=subject.id, slug="math-6-control-1").first()
+    if not control_topic:
+        control_topic = Topic(
+            subject_id=subject.id,
+            name="Контрольна робота. Раціональні числа, координатна пряма та площина",
+            slug="math-6-control-1",
+            room_code="math-6-control-1",
+            description="Підсумкова контрольна робота за 6 клас: вибір цілих чисел, робота з координатною прямою (позначення точок, визначення координат, середина відрізка), дії з цілими числами та модулем, побудова прямокутника на координатній площині (периметр і площа).",
+            theory_content=theory_control_work,
+            sort_order=21
+        )
+        db.add(control_topic)
+        db.commit()
+        db.refresh(control_topic)
+    else:
+        control_topic.name = "Контрольна робота. Раціональні числа, координатна пряма та площина"
+        control_topic.room_code = "math-6-control-1"
+        control_topic.description = "Підсумкова контрольна робота за 6 клас: вибір цілих чисел, робота з координатною прямою (позначення точок, визначення координат, середина відрізка), дії з цілими числами та модулем, побудова прямокутника на координатній площині (периметр і площа)."
+        control_topic.theory_content = theory_control_work
+        control_topic.sort_order = 21
+        db.commit()
+
+    control_tasks_data = [
+        # 1. Choose integers (multichoice with 10 options)
+        {
+            "task_order": 1,
+            "question": "Виберіть усі цілі числа серед наведених 10 варіантів (можна обрати декілька):",
+            "task_type": "multichoice",
+            "correct_answer": "A, C, D, F, H, J",
+            "options_json": json.dumps([
+                {"key": "A", "text": "-7"},
+                {"key": "B", "text": "3.4"},
+                {"key": "C", "text": "0"},
+                {"key": "D", "text": "-15"},
+                {"key": "E", "text": "5/9"},
+                {"key": "F", "text": "18"},
+                {"key": "G", "text": "-2.8"},
+                {"key": "H", "text": "-40"},
+                {"key": "I", "text": "6.12"},
+                {"key": "J", "text": "9"}
+            ], ensure_ascii=False),
+            "hint": "Цілі числа — це натуральні числа (додатні), протилежні їм від'ємні числа та число 0. Дробові числа (3.4, 5/9, -2.8, 6.12) не є цілими."
+        },
+        # 2-4. Indicate coordinate on number line (3 tasks)
+        {
+            "task_order": 2,
+            "question": "Позначте на координатній прямій точку A з координатою -4. Натисніть на відповідну точку на прямій та підтвердіть вибір:",
+            "task_type": "number_line_point",
+            "correct_answer": "-4",
+            "options_json": json.dumps({"target_point": "A", "target_coord": -4}, ensure_ascii=False),
+            "hint": "Знайдіть позначку -4 (ліворуч від 0 на 4 одиничних відрізки) та натисніть на неї."
+        },
+        {
+            "task_order": 3,
+            "question": "Позначте на координатній прямій точку B з координатою 3. Натисніть на відповідну точку на прямій та підтвердіть вибір:",
+            "task_type": "number_line_point",
+            "correct_answer": "3",
+            "options_json": json.dumps({"target_point": "B", "target_coord": 3}, ensure_ascii=False),
+            "hint": "Знайдіть позначку +3 (праворуч від 0 на 3 одиничних відрізки) та натисніть на неї."
+        },
+        {
+            "task_order": 4,
+            "question": "Позначте на координатній прямій точку C з координатою -6. Натисніть на відповідну точку на прямій та підтвердіть вибір:",
+            "task_type": "number_line_point",
+            "correct_answer": "-6",
+            "options_json": json.dumps({"target_point": "C", "target_coord": -6}, ensure_ascii=False),
+            "hint": "Знайдіть позначку -6 (ліворуч від 0 на 6 одиничних відрізків) та натисніть на неї."
+        },
+        # 5-7. What is the coordinate of point (3 tasks)
+        {
+            "task_order": 5,
+            "question": "Яка координата точки K, позначеної на координатній прямій? Введіть її числове значення:",
+            "task_type": "number_line_read",
+            "correct_answer": "-5",
+            "options_json": json.dumps({"point_name": "K", "point_coord": -5}, ensure_ascii=False),
+            "hint": "Точка K розташована ліворуч від початку відліку 0 на 5 одиниць, отже її координата дорівнює -5."
+        },
+        {
+            "task_order": 6,
+            "question": "Яка координата точки M, позначеної на координатній прямій? Введіть її числове значення:",
+            "task_type": "number_line_read",
+            "correct_answer": "4",
+            "options_json": json.dumps({"point_name": "M", "point_coord": 4}, ensure_ascii=False),
+            "hint": "Точка M розташована праворуч від початку відліку 0 на 4 одиниці, отже її координата дорівнює 4."
+        },
+        {
+            "task_order": 7,
+            "question": "Яка координата точки P, позначеної на координатній прямій? Введіть її числове значення:",
+            "task_type": "number_line_read",
+            "correct_answer": "-2",
+            "options_json": json.dumps({"point_name": "P", "point_coord": -2}, ensure_ascii=False),
+            "hint": "Точка P розташована ліворуч від початку відліку 0 на 2 одиниці, отже її координата дорівнює -2."
+        },
+        # 8. Midpoint of segment on number line
+        {
+            "task_order": 8,
+            "question": "Знайдіть координату середини відрізка AB на координатній прямій, якщо A(-7) і B(3). Введіть координату середини:",
+            "task_type": "number_line_midpoint",
+            "correct_answer": "-2",
+            "options_json": json.dumps({"pointA": {"name": "A", "coord": -7}, "pointB": {"name": "B", "coord": 3}}, ensure_ascii=False),
+            "hint": "Координата середини відрізка дорівнює півсумі координат його кінців: (-7 + 3) / 2 = -4 / 2 = -2."
+        },
+        # 9-16. 8 arithmetic tasks with integers (-10..10 / addition-subtraction -20..20, one module)
+        {
+            "task_order": 9,
+            "question": "Обчисліть: (-14) + (-5) = ?",
+            "task_type": "input_number",
+            "correct_answer": "-19",
+            "options_json": None,
+            "hint": "Щоб додати два від'ємних числа, додайте їх модулі та поставте знак мінус: -(14 + 5) = -19."
+        },
+        {
+            "task_order": 10,
+            "question": "Обчисліть: (-8) + 15 = ?",
+            "task_type": "input_number",
+            "correct_answer": "7",
+            "options_json": None,
+            "hint": "Додавання чисел з різними знаками: від більшого модуля віднімаємо менший: +(15 - 8) = 7."
+        },
+        {
+            "task_order": 11,
+            "question": "Обчисліть: 6 - 19 = ?",
+            "task_type": "input_number",
+            "correct_answer": "-13",
+            "options_json": None,
+            "hint": "6 - 19 = 6 + (-19) = -(19 - 6) = -13."
+        },
+        {
+            "task_order": 12,
+            "question": "Обчисліть: (-11) - (-16) = ?",
+            "task_type": "input_number",
+            "correct_answer": "5",
+            "options_json": None,
+            "hint": "Віднімання замінюємо додаванням протилежного: (-11) + 16 = 16 - 11 = 5."
+        },
+        {
+            "task_order": 13,
+            "question": "Обчисліть: (-7) · 8 = ?",
+            "task_type": "input_number",
+            "correct_answer": "-56",
+            "options_json": None,
+            "hint": "Добуток чисел з різними знаками є від'ємним: -(7 · 8) = -56."
+        },
+        {
+            "task_order": 14,
+            "question": "Обчисліть: (-6) · (-9) = ?",
+            "task_type": "input_number",
+            "correct_answer": "54",
+            "options_json": None,
+            "hint": "Добуток двох від'ємних чисел є додатним: + (6 · 9) = 54."
+        },
+        {
+            "task_order": 15,
+            "question": "Обчисліть: (-45) : 5 = ?",
+            "task_type": "input_number",
+            "correct_answer": "-9",
+            "options_json": None,
+            "hint": "Частка чисел з різними знаками є від'ємною: -(45 : 5) = -9."
+        },
+        {
+            "task_order": 16,
+            "question": "Обчисліть значення виразу з модулем: |-15| + |-9| = ?",
+            "task_type": "input_number",
+            "correct_answer": "24",
+            "options_json": None,
+            "hint": "Модуль від'ємного числа є числом додатним: |-15| = 15, |-9| = 9. 15 + 9 = 24."
+        },
+        # 17. Rectangle on coordinate plane, plot points, enter perimeter and area
+        {
+            "task_order": 17,
+            "question": "Побудуйте на координатній площині прямокутник ABCD за координатами його вершин: A(-3, -2), B(3, -2), C(3, 2), D(-3, 2). Поставте 4 точки на координатній площині, після чого обчисліть і введіть периметр (P) та площу (S) прямокутника:",
+            "task_type": "coordinate_plane_rect",
+            "correct_answer": "P=20, S=24|P=20; S=24|20, 24|20; 24|P:20, S:24|P=20 S=24|20 24",
+            "options_json": json.dumps({
+                "vertices": [
+                    {"name": "A", "x": -3, "y": -2},
+                    {"name": "B", "x": 3, "y": -2},
+                    {"name": "C", "x": 3, "y": 2},
+                    {"name": "D", "x": -3, "y": 2}
+                ],
+                "expected_perimeter": 20,
+                "expected_area": 24
+            }, ensure_ascii=False),
+            "hint": "Довжини сторін прямокутника: ширина AB = 3 - (-3) = 6, висота BC = 2 - (-2) = 4. Периметр P = 2 · (6 + 4) = 20, площа S = 6 · 4 = 24."
+        }
+    ]
+
+    upsert_topic_tasks(db, control_topic.id, control_tasks_data)
+
+    # 7. 6th Grade Math Control Work 2 (Контрольна робота №2 з математики для 6 класу)
+    theory_control_work_2 = """### 📝 Контрольна робота №2 з математики (6 клас)
+
+---
+
+#### 1. Арифметичні дії з цілими числами:
+- **Додавання з однаковими знаками:** додаємо модулі і зберігаємо спільний знак.
+  $$(-11) + (-7) = -(11 + 7) = -18$$
+- **Додавання з різними знаками:** від більшого модуля віднімаємо менший і ставимо знак доданка з більшим модулем.
+  $$(-14) + 9 = -(14 - 9) = -5, \\quad (-6) + 15 = +(15 - 6) = 9$$
+- **Віднімання:** додаємо число, протилежне від'ємнику ($a - b = a + (-b)$).
+  $$7 - 18 = 7 + (-18) = -11, \\quad (-9) - (-14) = (-9) + 14 = 5$$
+- **Множення та ділення:**
+  - Однаковий знак ($+ \\cdot +$, $- \\cdot -$, $- : -$): результат **додатний**.
+    $$(-9) \\cdot (-4) = 36, \\quad (-45) : (-9) = 5$$
+  - Різні знаки ($+ \\cdot -$, $- \\cdot +$, $+ : -$, $- : +$): результат **від'ємний**.
+    $$(-6) \\cdot 7 = -42, \\quad 42 : (-6) = -7$$
+
+---
+
+#### 2. Рівняння з модулем виду $|ax + b| = c$:
+Модуль числа — це відстань на координатній прямій, тому якщо $c > 0$, рівняння розпадається на два лінійних рівняння:
+$$ax + b = c \\quad \\text{або} \\quad ax + b = -c$$
+
+**Приклад розв'язання:**
+Розв'язати рівняння: $|2x - 4| = 8$
+1) Перший випадок:
+   $$2x - 4 = 8 \\implies 2x = 8 + 4 \\implies 2x = 12 \\implies x = 6$$
+2) Другий випадок:
+   $$2x - 4 = -8 \\implies 2x = -8 + 4 \\implies 2x = -4 \\implies x = -2$$
+**Відповідь:** $6; -2$ (або $-2; 6$).
+
+---
+
+#### 3. Рівняння, в яких добуток дорівнює нулю виду $(ax + b)(cx + d) = 0$:
+Добуток двох або кількох множників дорівнює нулю тоді і тільки тоді, коли **хоча б один із множників дорівнює нулю**:
+$$ax + b = 0 \\quad \\text{або} \\quad cx + d = 0$$
+
+**Приклад розв'язання:**
+Розв'язати рівняння: $(x - 5)(3x + 9) = 0$
+1) Перший множник дорівнює нулю:
+   $$x - 5 = 0 \\implies x = 5$$
+2) Другий множник дорівнює нулю:
+   $$3x + 9 = 0 \\implies 3x = -9 \\implies x = -3$$
+**Відповідь:** $5; -3$ (або $-3; 5$).
+
+---
+
+#### 4. Практичні задачі з від'ємними числами (температура, баланс рахунку):
+- Зниження температури або витрати грошей позначаються зі знаком «мінус» (віднімання).
+- Підвищення температури або поповнення рахунку позначаються зі знаком «плюс» (додавання).
+"""
+
+    control_topic_2 = db.query(Topic).filter_by(subject_id=subject.id, slug="math-6-control-2").first()
+    if not control_topic_2:
+        control_topic_2 = Topic(
+            subject_id=subject.id,
+            name="Контрольна робота №2. Раціональні числа та рівняння",
+            slug="math-6-control-2",
+            room_code="math-6-control-2",
+            description="Контрольна робота №2 для 6 класу: 20 завдань на додавання, віднімання, множення та ділення цілих чисел, рівняння з модулем, рівняння де добуток дорівнює 0, та практична задача з від'ємними числами.",
+            theory_content=theory_control_work_2,
+            sort_order=22
+        )
+        db.add(control_topic_2)
+        db.commit()
+        db.refresh(control_topic_2)
+    else:
+        control_topic_2.name = "Контрольна робота №2. Раціональні числа та рівняння"
+        control_topic_2.room_code = "math-6-control-2"
+        control_topic_2.description = "Контрольна робота №2 для 6 класу: 20 завдань на додавання, віднімання, множення та ділення цілих чисел, рівняння з модулем, рівняння де добуток дорівнює 0, та практична задача з від'ємними числами."
+        control_topic_2.theory_content = theory_control_work_2
+        control_topic_2.sort_order = 22
+        db.commit()
+
+    control_2_tasks_data = [
+        # Tasks 1-20: Simple arithmetic operations on integers (-10..10 / addition-subtraction -20..20)
+        {
+            "task_order": 1,
+            "question": "Обчисліть: (-11) + (-7) = ?",
+            "task_type": "input_number",
+            "correct_answer": "-18",
+            "options_json": None,
+            "hint": "Щоб додати два від'ємних числа, додайте їх модулі і поставте знак мінус: -(11 + 7) = -18."
+        },
+        {
+            "task_order": 2,
+            "question": "Обчисліть: (-14) + 9 = ?",
+            "task_type": "input_number",
+            "correct_answer": "-5",
+            "options_json": None,
+            "hint": "Додавання чисел з різними знаками: від більшого модуля віднімаємо менший: -(14 - 9) = -5."
+        },
+        {
+            "task_order": 3,
+            "question": "Обчисліть: 8 + (-19) = ?",
+            "task_type": "input_number",
+            "correct_answer": "-11",
+            "options_json": None,
+            "hint": "8 + (-19) = -(19 - 8) = -11."
+        },
+        {
+            "task_order": 4,
+            "question": "Обчисліть: (-6) + 15 = ?",
+            "task_type": "input_number",
+            "correct_answer": "9",
+            "options_json": None,
+            "hint": "(-6) + 15 = +(15 - 6) = 9."
+        },
+        {
+            "task_order": 5,
+            "question": "Обчисліть: (-12) + (-8) = ?",
+            "task_type": "input_number",
+            "correct_answer": "-20",
+            "options_json": None,
+            "hint": "-(12 + 8) = -20."
+        },
+        {
+            "task_order": 6,
+            "question": "Обчисліть: 13 + (-6) = ?",
+            "task_type": "input_number",
+            "correct_answer": "7",
+            "options_json": None,
+            "hint": "13 + (-6) = 13 - 6 = 7."
+        },
+        {
+            "task_order": 7,
+            "question": "Обчисліть: 7 - 18 = ?",
+            "task_type": "input_number",
+            "correct_answer": "-11",
+            "options_json": None,
+            "hint": "7 - 18 = 7 + (-18) = -(18 - 7) = -11."
+        },
+        {
+            "task_order": 8,
+            "question": "Обчисліть: (-9) - (-14) = ?",
+            "task_type": "input_number",
+            "correct_answer": "5",
+            "options_json": None,
+            "hint": "Віднімання замінюємо додаванням протилежного: (-9) + 14 = 14 - 9 = 5."
+        },
+        {
+            "task_order": 9,
+            "question": "Обчисліть: (-13) - 6 = ?",
+            "task_type": "input_number",
+            "correct_answer": "-19",
+            "options_json": None,
+            "hint": "(-13) - 6 = (-13) + (-6) = -19."
+        },
+        {
+            "task_order": 10,
+            "question": "Обчисліть: 5 - (-12) = ?",
+            "task_type": "input_number",
+            "correct_answer": "17",
+            "options_json": None,
+            "hint": "5 - (-12) = 5 + 12 = 17."
+        },
+        {
+            "task_order": 11,
+            "question": "Обчисліть: (-15) - (-8) = ?",
+            "task_type": "input_number",
+            "correct_answer": "-7",
+            "options_json": None,
+            "hint": "(-15) - (-8) = (-15) + 8 = -(15 - 8) = -7."
+        },
+        {
+            "task_order": 12,
+            "question": "Обчисліть: (-4) - 16 = ?",
+            "task_type": "input_number",
+            "correct_answer": "-20",
+            "options_json": None,
+            "hint": "(-4) - 16 = (-4) + (-16) = -20."
+        },
+        {
+            "task_order": 13,
+            "question": "Обчисліть: (-6) · 7 = ?",
+            "task_type": "input_number",
+            "correct_answer": "-42",
+            "options_json": None,
+            "hint": "Добуток чисел з різними знаками є від'ємним: -(6 · 7) = -42."
+        },
+        {
+            "task_order": 14,
+            "question": "Обчисліть: 8 · (-5) = ?",
+            "task_type": "input_number",
+            "correct_answer": "-40",
+            "options_json": None,
+            "hint": "Добуток чисел з різними знаками є від'ємним: -(8 · 5) = -40."
+        },
+        {
+            "task_order": 15,
+            "question": "Обчисліть: (-9) · (-4) = ?",
+            "task_type": "input_number",
+            "correct_answer": "36",
+            "options_json": None,
+            "hint": "Добуток двох від'ємних чисел є додатним: +(9 · 4) = 36."
+        },
+        {
+            "task_order": 16,
+            "question": "Обчисліть: (-7) · (-8) = ?",
+            "task_type": "input_number",
+            "correct_answer": "56",
+            "options_json": None,
+            "hint": "Добуток двох від'ємних чисел є додатним: +(7 · 8) = 56."
+        },
+        {
+            "task_order": 17,
+            "question": "Обчисліть: (-32) : 8 = ?",
+            "task_type": "input_number",
+            "correct_answer": "-4",
+            "options_json": None,
+            "hint": "Частка чисел з різними знаками є від'ємною: -(32 : 8) = -4."
+        },
+        {
+            "task_order": 18,
+            "question": "Обчисліть: (-45) : (-9) = ?",
+            "task_type": "input_number",
+            "correct_answer": "5",
+            "options_json": None,
+            "hint": "Частка двох від'ємних чисел є додатним числом: +(45 : 9) = 5."
+        },
+        {
+            "task_order": 19,
+            "question": "Обчисліть: 42 : (-6) = ?",
+            "task_type": "input_number",
+            "correct_answer": "-7",
+            "options_json": None,
+            "hint": "Частка чисел з різними знаками є від'ємною: -(42 : 6) = -7."
+        },
+        {
+            "task_order": 20,
+            "question": "Обчисліть: (-56) : 7 = ?",
+            "task_type": "input_number",
+            "correct_answer": "-8",
+            "options_json": None,
+            "hint": "Частка чисел з різними знаками є від'ємною: -(56 : 7) = -8."
+        },
+        # Task 21: Equation with module |3x - 3| = 9
+        {
+            "task_order": 21,
+            "question": "📘 Приклад: |2x - 4| = 8 розпадається на 2x - 4 = 8 (x = 6) або 2x - 4 = -8 (x = -2), відповідь записується: 6; -2.\n\nРозв'яжіть рівняння з модулем:\n|3x - 3| = 9\nЯкщо рівняння має два розв'язки, запишіть їх через крапку з комою (наприклад: -10;-20):",
+            "task_type": "input_number",
+            "correct_answer": "4; -2|-2; 4|4;-2|-2;4|4, -2|-2, 4|x=4; x=-2|x=-2; x=4|x=4;x=-2|x=-2;x=4",
+            "options_json": None,
+            "hint": "Рівняння |3x - 3| = 9 розпадається на два випадки: 1) 3x - 3 = 9 => 3x = 12 => x = 4; 2) 3x - 3 = -9 => 3x = -6 => x = -2. Відповідь: 4; -2 (або -2; 4)."
+        },
+        # Task 22: Equation where product is zero (x + 3) * (2x + 6) = 0
+        {
+            "task_order": 22,
+            "question": "📘 Приклад: (x - 5) · (3x + 9) = 0 розпадається на x - 5 = 0 (x = 5) або 3x + 9 = 0 (x = -3), відповідь записується: 5; -3.\n\nРозв'яжіть рівняння:\n(x + 3) · (2x + 6) = 0\nЗапишіть знайдені розв'язки (якщо два розв'язки — через крапку з комою):",
+            "task_type": "input_number",
+            "correct_answer": "-3|-3; -3|-3;-3|x=-3|x1=-3; x2=-3|-3, -3|x=-3; x=-3|x=-3;x=-3",
+            "options_json": None,
+            "hint": "Добуток дорівнює 0, коли хоча б один із множників дорівнює 0: 1) x + 3 = 0 => x = -3; 2) 2x + 6 = 0 => 2x = -6 => x = -3. Обидва множники дають розв'язок x = -3."
+        },
+        # Task 23: Practical problem with negative numbers
+        {
+            "task_order": 23,
+            "question": "О 18:00 термометр показував температуру повітря +2 °C. До опівночі температура впала на 9 °C, а до ранку знизилася ще на 3 °C. Яку температуру показував термометр уранці? (У відповідь запишіть лише число у °C, наприклад: -10)",
+            "task_type": "input_number",
+            "correct_answer": "-10|-10°C|-10 C|-10 град|-10 градусів|-10°",
+            "options_json": None,
+            "hint": "Обчислюємо послідовно: початкова температура 2 °C, впала на 9 °C: 2 - 9 = -7 °C. Знизилася ще на 3 °C: -7 - 3 = -10 °C."
+        }
+    ]
+
+    upsert_topic_tasks(db, control_topic_2.id, control_2_tasks_data)
 
     # ==========================================
     # 8th Grade: Informatics (Subject & Topics)
@@ -1181,132 +1717,115 @@ def seed_database(db: Session):
         db.commit()
 
     # Seed 10 practical and theoretical tasks for informatics
-    info_tasks_count = db.query(Task).filter_by(topic_id=info_topic.id).count()
-    if info_tasks_count < 10:
-        db.query(Task).filter_by(topic_id=info_topic.id).delete()
-        db.commit()
+    tasks_informatics_data = [
+        {
+            "task_order": 1,
+            "question": "Що є головною метою стиснення даних?",
+            "task_type": "choice",
+            "correct_answer": "A",
+            "options_json": json.dumps([
+                {"key": "A", "text": "Зменшення обсягу даних для економії пам'яті та прискорення передавання мережею"},
+                {"key": "B", "text": "Збільшення розміру файлу для кращого збереження"},
+                {"key": "C", "text": "Автоматичне видалення вірусів з комп'ютера"},
+                {"key": "D", "text": "Переклад тексту файлу іншими мовами"}
+            ], ensure_ascii=False),
+            "hint": "Стиснення даних зменшує їх обсяг, щоб файли займали менше місця і швидше завантажувалися."
+        },
+        {
+            "task_order": 2,
+            "question": "Який вид стиснення використовується для текстових файлів, програм і баз даних, де неприпустима втрата жодного байта чи символу?",
+            "task_type": "choice",
+            "correct_answer": "A",
+            "options_json": json.dumps([
+                {"key": "A", "text": "Стиснення без втрат (Lossless) — після розпакування відновлюється 100% точна копія"},
+                {"key": "B", "text": "Стиснення з втратами (Lossy) — відкидається частина символів для економії"},
+                {"key": "C", "text": "Візуальне стиснення з розмиттям тексту"},
+                {"key": "D", "text": "Часткове видалення випадкових слів"}
+            ], ensure_ascii=False),
+            "hint": "Для програм і документів застосовують тільки стиснення БЕЗ втрат (ZIP, 7z)."
+        },
+        {
+            "task_order": 3,
+            "question": "Практика з файлом archive_lesson1.txt: Початковий розмір файлу становить 430 000 байт (~420 КБ). Заархівуйте цей файл у формат ZIP (через архіватор або вбудовану лабораторію). Розмір отриманого архіву становить приблизно 1 315 байт (~1.3 КБ). Обчисліть, у скільки разів зменшився файл (коефіцієнт стиснення K = 430000 / 1315). Введіть округлене ціле число (у скільки разів):",
+            "task_type": "input_number",
+            "correct_answer": "327|327x|327х|327 разів|320-335",
+            "options_json": None,
+            "hint": "Поділіть 430 000 на 1 315: 430000 / 1315 ≈ 327 разів!"
+        },
+        {
+            "task_order": 4,
+            "question": "Практика з документом franko-ivan-iakovych-farbovanyy-lys.docx: Початковий розмір файлу становить 24 318 байт (~23.7 КБ). Спробуйте заархівувати цей файл у ZIP. Отриманий архів займає приблизно 21 536 байт (~21 КБ). Обчисліть коефіцієнт стиснення K (K = 24318 / 21536). Введіть число з точністю до десятих або сотих (наприклад 1.1 або 1.13):",
+            "task_type": "text",
+            "correct_answer": "1.13|1.1|1.13x|1.13х|1.1x",
+            "options_json": None,
+            "hint": "Поділіть 24318 на 21536: вийде приблизно 1.13 (обсяг зменшився лише в 1.13 раза)."
+        },
+        {
+            "task_order": 5,
+            "question": "Чому звичайний текстовий файл .txt стиснувся в ~327 разів, а документ .docx — лише в ~1.13 раза?",
+            "task_type": "choice",
+            "correct_answer": "A",
+            "options_json": json.dumps([
+                {"key": "A", "text": "Файл .docx вже сам по собі є внутрішнім ZIP-архівом XML-документів, тому повторне стиснення майже не дає ефекту"},
+                {"key": "B", "text": "Архіватори не вміють працювати з українським текстом казок"},
+                {"key": "C", "text": "Файл .txt містить віруси, які видаляються при архівації"},
+                {"key": "D", "text": "У документах .docx заборонено зменшення розміру"}
+            ], ensure_ascii=False),
+            "hint": "Файли .docx, .xlsx, .pptx є архівами ZIP, усередині яких уже запаковано XML-структури та ресурси."
+        },
+        {
+            "task_order": 6,
+            "question": "Практика з фотографією vecteezy_background-of-pebbles-and-tree-branches_25771406.jpeg: Початковий розмір становить 11 735 063 байт (~11.74 МБ). Стисніть якість зображення (за допомогою лабораторії або графічного редактора) так, щоб на камінцях з'явилися помітні артефакти стиснення, а розмір зменшився приблизно до 1 173 500 байт (~1.17 МБ). У скільки разів було стиснуто зображення (11.74 / 1.17)?",
+            "task_type": "input_number",
+            "correct_answer": "10|10x|10х|10 разів",
+            "options_json": None,
+            "hint": "11.74 МБ / 1.17 МБ = 10 разів (розмір зменшився в 10 разів при помітній втраті дрібних деталей)."
+        },
+        {
+            "task_order": 7,
+            "question": "Якщо ми стиснемо зображення максимально низькою якістю до розміру 60 КБ (0.06 МБ), воно стане сильно розмитим та пікселізованим. У скільки приблизно разів зменшився розмір від початкових 11 740 КБ до 60 КБ (11740 / 60)?",
+            "task_type": "input_number",
+            "correct_answer": "195|196|200|190-200|195.6",
+            "options_json": None,
+            "hint": "11740 КБ / 60 КБ ≈ 195-200 разів!"
+        },
+        {
+            "task_order": 8,
+            "question": "Практика: спробуйте заархівувати фотографію JPEG (11.74 МБ) архіватором ZIP. Розмір ZIP-архіву вийшов 11.68 МБ. Який коефіцієнт стиснення (у скільки разів зменшився файл: 11.74 / 11.68)?",
+            "task_type": "text",
+            "correct_answer": "1|1.0|1.00|1x|1х",
+            "options_json": None,
+            "hint": "11.74 / 11.68 ≈ 1.0 (файл майже не змінив свій розмір, оскільки JPEG уже містить стиснені дані)."
+        },
+        {
+            "task_order": 9,
+            "question": "Для яких типів файлів доцільно застосовувати стиснення З ВТРАТАМИ (Lossy), а для яких — виключно БЕЗ ВТРАТ (Lossless)?",
+            "task_type": "choice",
+            "correct_answer": "A",
+            "options_json": json.dumps([
+                {"key": "A", "text": "З втратами — для фото, відео та аудіо; без втрат — для тексту, програм, таблиць та баз даних"},
+                {"key": "B", "text": "З втратами — для програм і коду; без втрат — для фотографій"},
+                {"key": "C", "text": "Для всіх типів даних використовується лише стиснення з втратами"},
+                {"key": "D", "text": "Для всіх файлів завжди використовується однаковий алгоритм"}
+            ], ensure_ascii=False),
+            "hint": "Людське око чи слух не помічають незначних втрат у фото/аудіо, але в програмі чи тексті втрата навіть одного символу призведе до помилки."
+        },
+        {
+            "task_order": 10,
+            "question": "Чи гарантує встановлення пароля на ZIP/7z архів, що файли всередині не містять комп'ютерних вірусів, якщо архів завантажено з ненадійного сайту?",
+            "task_type": "choice",
+            "correct_answer": "A",
+            "options_json": json.dumps([
+                {"key": "A", "text": "Ні, пароль лише захищає від стороннього перегляду, але не робить невідомий файл безпечним"},
+                {"key": "B", "text": "Так, пароль автоматично знищує всі віруси всередині архіву"},
+                {"key": "C", "text": "Так, антивіруси не потрібні, якщо на файлі є пароль"},
+                {"key": "D", "text": "Пароль змінює тип файлу на безпечний"}
+            ], ensure_ascii=False),
+            "hint": "Пам'ятайте правило зі слайдів: Архівування ≠ Резервна копія ≠ Антивірус. Пароль захищає від відкриття, а не від вірусів."
+        }
+    ]
 
-        tasks_informatics_data = [
-            {
-                "task_order": 1,
-                "question": "Що є головною метою стиснення даних?",
-                "task_type": "choice",
-                "correct_answer": "A",
-                "options_json": json.dumps([
-                    {"key": "A", "text": "Зменшення обсягу даних для економії пам'яті та прискорення передавання мережею"},
-                    {"key": "B", "text": "Збільшення розміру файлу для кращого збереження"},
-                    {"key": "C", "text": "Автоматичне видалення вірусів з комп'ютера"},
-                    {"key": "D", "text": "Переклад тексту файлу іншими мовами"}
-                ], ensure_ascii=False),
-                "hint": "Стиснення даних зменшує їх обсяг, щоб файли займали менше місця і швидше завантажувалися."
-            },
-            {
-                "task_order": 2,
-                "question": "Який вид стиснення використовується для текстових файлів, програм і баз даних, де неприпустима втрата жодного байта чи символу?",
-                "task_type": "choice",
-                "correct_answer": "A",
-                "options_json": json.dumps([
-                    {"key": "A", "text": "Стиснення без втрат (Lossless) — після розпакування відновлюється 100% точна копія"},
-                    {"key": "B", "text": "Стиснення з втратами (Lossy) — відкидається частина символів для економії"},
-                    {"key": "C", "text": "Візуальне стиснення з розмиттям тексту"},
-                    {"key": "D", "text": "Часткове видалення випадкових слів"}
-                ], ensure_ascii=False),
-                "hint": "Для програм і документів застосовують тільки стиснення БЕЗ втрат (ZIP, 7z)."
-            },
-            {
-                "task_order": 3,
-                "question": "Практика з файлом archive_lesson1.txt: Початковий розмір файлу становить 430 000 байт (~420 КБ). Заархівуйте цей файл у формат ZIP (через архіватор або вбудовану лабораторію). Розмір отриманого архіву становить приблизно 1 315 байт (~1.3 КБ). Обчисліть, у скільки разів зменшився файл (коефіцієнт стиснення K = 430000 / 1315). Введіть округлене ціле число (у скільки разів):",
-                "task_type": "input_number",
-                "correct_answer": "327|327x|327х|327 разів|320-335",
-                "options_json": None,
-                "hint": "Поділіть 430 000 на 1 315: 430000 / 1315 ≈ 327 разів!"
-            },
-            {
-                "task_order": 4,
-                "question": "Практика з документом franko-ivan-iakovych-farbovanyy-lys.docx: Початковий розмір файлу становить 24 318 байт (~23.7 КБ). Спробуйте заархівувати цей файл у ZIP. Отриманий архів займає приблизно 21 536 байт (~21 КБ). Обчисліть коефіцієнт стиснення K (K = 24318 / 21536). Введіть число з точністю до десятих або сотих (наприклад 1.1 або 1.13):",
-                "task_type": "text",
-                "correct_answer": "1.13|1.1|1.13x|1.13х|1.1x",
-                "options_json": None,
-                "hint": "Поділіть 24318 на 21536: вийде приблизно 1.13 (обсяг зменшився лише в 1.13 раза)."
-            },
-            {
-                "task_order": 5,
-                "question": "Чому звичайний текстовий файл .txt стиснувся в ~327 разів, а документ .docx — лише в ~1.13 раза?",
-                "task_type": "choice",
-                "correct_answer": "A",
-                "options_json": json.dumps([
-                    {"key": "A", "text": "Файл .docx вже сам по собі є внутрішнім ZIP-архівом XML-документів, тому повторне стиснення майже не дає ефекту"},
-                    {"key": "B", "text": "Архіватори не вміють працювати з українським текстом казок"},
-                    {"key": "C", "text": "Файл .txt містить віруси, які видаляються при архівації"},
-                    {"key": "D", "text": "У документах .docx заборонено зменшення розміру"}
-                ], ensure_ascii=False),
-                "hint": "Файли .docx, .xlsx, .pptx є архівами ZIP, усередині яких уже запаковано XML-структури та ресурси."
-            },
-            {
-                "task_order": 6,
-                "question": "Практика з фотографією vecteezy_background-of-pebbles-and-tree-branches_25771406.jpeg: Початковий розмір становить 11 735 063 байт (~11.74 МБ). Стисніть якість зображення (за допомогою лабораторії або графічного редактора) так, щоб на камінцях з'явилися помітні артефакти стиснення, а розмір зменшився приблизно до 1 173 500 байт (~1.17 МБ). У скільки разів було стиснуто зображення (11.74 / 1.17)?",
-                "task_type": "input_number",
-                "correct_answer": "10|10x|10х|10 разів",
-                "options_json": None,
-                "hint": "11.74 МБ / 1.17 МБ = 10 разів (розмір зменшився в 10 разів при помітній втраті дрібних деталей)."
-            },
-            {
-                "task_order": 7,
-                "question": "Якщо ми стиснемо зображення максимально низькою якістю до розміру 60 КБ (0.06 МБ), воно стане сильно розмитим та пікселізованим. У скільки приблизно разів зменшився розмір від початкових 11 740 КБ до 60 КБ (11740 / 60)?",
-                "task_type": "input_number",
-                "correct_answer": "195|196|200|190-200|195.6",
-                "options_json": None,
-                "hint": "11740 КБ / 60 КБ ≈ 195-200 разів!"
-            },
-            {
-                "task_order": 8,
-                "question": "Практика: спробуйте заархівувати фотографію JPEG (11.74 МБ) архіватором ZIP. Розмір ZIP-архіву вийшов 11.68 МБ. Який коефіцієнт стиснення (у скільки разів зменшився файл: 11.74 / 11.68)?",
-                "task_type": "text",
-                "correct_answer": "1|1.0|1.00|1x|1х",
-                "options_json": None,
-                "hint": "11.74 / 11.68 ≈ 1.0 (файл майже не змінив свій розмір, оскільки JPEG уже містить стиснені дані)."
-            },
-            {
-                "task_order": 9,
-                "question": "Для яких типів файлів доцільно застосовувати стиснення З ВТРАТАМИ (Lossy), а для яких — виключно БЕЗ ВТРАТ (Lossless)?",
-                "task_type": "choice",
-                "correct_answer": "A",
-                "options_json": json.dumps([
-                    {"key": "A", "text": "З втратами — для фото, відео та аудіо; без втрат — для тексту, програм, таблиць та баз даних"},
-                    {"key": "B", "text": "З втратами — для програм і коду; без втрат — для фотографій"},
-                    {"key": "C", "text": "Для всіх типів даних використовується лише стиснення з втратами"},
-                    {"key": "D", "text": "Для всіх файлів завжди використовується однаковий алгоритм"}
-                ], ensure_ascii=False),
-                "hint": "Людське око чи слух не помічають незначних втрат у фото/аудіо, але в програмі чи тексті втрата навіть одного символу призведе до помилки."
-            },
-            {
-                "task_order": 10,
-                "question": "Чи гарантує встановлення пароля на ZIP/7z архів, що файли всередині не містять комп'ютерних вірусів, якщо архів завантажено з ненадійного сайту?",
-                "task_type": "choice",
-                "correct_answer": "A",
-                "options_json": json.dumps([
-                    {"key": "A", "text": "Ні, пароль лише захищає від стороннього перегляду, але не робить невідомий файл безпечним"},
-                    {"key": "B", "text": "Так, пароль автоматично знищує всі віруси всередині архіву"},
-                    {"key": "C", "text": "Так, антивіруси не потрібні, якщо на файлі є пароль"},
-                    {"key": "D", "text": "Пароль змінює тип файлу на безпечний"}
-                ], ensure_ascii=False),
-                "hint": "Пам'ятайте правило зі слайдів: Архівування ≠ Резервна копія ≠ Антивірус. Пароль захищає від відкриття, а не від вірусів."
-            }
-        ]
-
-        for t_info in tasks_informatics_data:
-            task = Task(
-                topic_id=info_topic.id,
-                task_order=t_info["task_order"],
-                question=t_info["question"],
-                task_type=t_info["task_type"],
-                correct_answer=t_info["correct_answer"],
-                options_json=t_info["options_json"],
-                hint=t_info["hint"]
-            )
-            db.add(task)
-        db.commit()
-        print(f"Seeded 10 practical tasks for topic: {info_topic.name}")
+    upsert_topic_tasks(db, info_topic.id, tasks_informatics_data)
 
     theory_archives_8 = """### 💻 Практична робота: «Операції з архівами даних» (8 клас)
 
@@ -1456,19 +1975,18 @@ def seed_database(db: Session):
         ], "Після розпакування завжди перевіряють повноту й працездатність отриманих файлів.")
     ]
 
-    db.query(Task).filter_by(topic_id=archives_topic.id).delete()
-    for order, question, task_type, answer, options, hint in archives_tasks:
-        db.add(Task(
-            topic_id=archives_topic.id,
-            task_order=order,
-            question=question,
-            task_type=task_type,
-            correct_answer=answer,
-            options_json=json.dumps(options, ensure_ascii=False) if options else None,
-            hint=hint
-        ))
-    db.commit()
-    print(f"Seeded {len(archives_tasks)} tasks for topic: {archives_topic.name}")
+    arch_tasks = [
+        {
+            "task_order": order,
+            "question": question,
+            "task_type": task_type,
+            "correct_answer": answer,
+            "options_json": json.dumps(options, ensure_ascii=False) if options else None,
+            "hint": hint
+        }
+        for order, question, task_type, answer, options, hint in archives_tasks
+    ]
+    upsert_topic_tasks(db, archives_topic.id, arch_tasks)
 
     # =========================================================================
     # 8th Grade: Informatics Topic 3 - Final Lesson on Compression & Archives
@@ -1674,19 +2192,18 @@ def seed_database(db: Session):
         ], "Формат docx — це вже внутрішньо стиснений zip-контейнер, тому його повторне стиснення майже не зменшує обсяг.")
     ]
 
-    db.query(Task).filter_by(topic_id=final_archives_topic.id).delete()
-    for order, question, task_type, answer, options, hint in final_archives_tasks:
-        db.add(Task(
-            topic_id=final_archives_topic.id,
-            task_order=order,
-            question=question,
-            task_type=task_type,
-            correct_answer=answer,
-            options_json=json.dumps(options, ensure_ascii=False) if options else None,
-            hint=hint
-        ))
-    db.commit()
-    print(f"Seeded {len(final_archives_tasks)} tasks for topic: {final_archives_topic.name}")
+    final_arch_tasks = [
+        {
+            "task_order": order,
+            "question": question,
+            "task_type": task_type,
+            "correct_answer": answer,
+            "options_json": json.dumps(options, ensure_ascii=False) if options else None,
+            "hint": hint
+        }
+        for order, question, task_type, answer, options, hint in final_archives_tasks
+    ]
+    upsert_topic_tasks(db, final_archives_topic.id, final_arch_tasks)
 
     # ==========================================
     # 9th Grade: Informatics (Subject & Topics)

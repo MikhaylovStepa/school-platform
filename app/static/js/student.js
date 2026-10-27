@@ -892,6 +892,8 @@ function renderActiveTask() {
     const choiceContainer = document.getElementById("choice-options-container");
     const signSequenceContainer = document.getElementById("sign-sequence-container");
     const primeFactorContainer = document.getElementById("prime-factorization-container");
+    const numberLineContainer = document.getElementById("number-line-container");
+    const coordinatePlaneContainer = document.getElementById("coordinate-plane-container");
     const feedbackBox = document.getElementById("feedback-box");
     const activeCard = document.getElementById("active-task-card");
     const submitBtn = document.getElementById("submit-btn");
@@ -902,6 +904,8 @@ function renderActiveTask() {
     // Reset default visibility & input attributes
     if (signSequenceContainer) signSequenceContainer.classList.add("hidden");
     if (primeFactorContainer) primeFactorContainer.classList.add("hidden");
+    if (numberLineContainer) numberLineContainer.classList.add("hidden");
+    if (coordinatePlaneContainer) coordinatePlaneContainer.classList.add("hidden");
     if (choiceContainer) choiceContainer.classList.add("hidden");
     if (inputGroupContainer) inputGroupContainer.classList.remove("hidden");
     if (mathKeypad) mathKeypad.classList.add("hidden");
@@ -933,11 +937,21 @@ function renderActiveTask() {
     const isChoice = (task.task_type === "choice") || (options && Array.isArray(options) && options.length > 0 && !isMultiChoice);
     const isSignSequence = (task.task_type === "sign_sequence") || (currentRoomCode === "math-6-brackets-signs");
     const isPrimeFactor = (task.task_type === "prime_factorization") || (currentRoomCode === "math-6-prime-factorization");
+    const isNumberLinePoint = (task.task_type === "number_line_point");
+    const isNumberLineRead = (task.task_type === "number_line_read");
+    const isNumberLineMidpoint = (task.task_type === "number_line_midpoint");
+    const isCoordinatePlaneRect = (task.task_type === "coordinate_plane_rect");
 
     if (isChoice || isMultiChoice) {
         choiceContainer.classList.remove("hidden");
         choiceContainer.innerHTML = "";
         if (inputGroupContainer) inputGroupContainer.classList.add("hidden");
+
+        if (options && options.length >= 8) {
+            choiceContainer.className = "grid grid-cols-2 sm:grid-cols-5 gap-2.5 mb-6 max-w-2xl mx-auto";
+        } else {
+            choiceContainer.className = "grid grid-cols-1 gap-2.5 mb-6 max-w-xl mx-auto";
+        }
 
         const rawVal = (input.value || task.last_answer || "").trim().toUpperCase();
         let selectedKeys = [];
@@ -953,13 +967,13 @@ function renderActiveTask() {
             optBtn.onclick = () => isMultiChoice ? toggleMultiChoiceOption(opt.key) : selectChoiceOption(opt.key);
 
             const isSelected = selectedKeys.includes(opt.key.toUpperCase());
-            optBtn.className = `p-4 rounded-2xl border-2 text-left transition-all flex items-start gap-3.5 cursor-pointer ${
+            optBtn.className = `p-3.5 sm:p-4 rounded-2xl border-2 text-left transition-all flex items-start gap-3 cursor-pointer ${
                 isSelected 
                 ? 'border-brand-500 bg-brand-50/90 shadow-md ring-4 ring-brand-500/20 text-brand-950 font-bold scale-[1.01]' 
                 : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 text-slate-800'
             }`;
             optBtn.innerHTML = `
-                <div class="w-8 h-8 rounded-xl font-black text-sm flex items-center justify-center shrink-0 transition ${
+                <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center shrink-0 transition ${
                     isSelected ? 'bg-brand-600 text-white shadow-sm' : 'bg-slate-100 text-slate-700'
                 }">
                     ${opt.key}
@@ -967,17 +981,41 @@ function renderActiveTask() {
                 <div class="text-sm sm:text-base font-semibold leading-relaxed pt-0.5 flex-1">
                     ${opt.text}
                 </div>
-                ${isSelected ? '<div class="text-brand-600 text-xl pt-0.5 shrink-0"><i class="fa-solid fa-circle-check"></i></div>' : ''}
+                ${isSelected ? '<div class="text-brand-600 text-lg pt-0.5 shrink-0"><i class="fa-solid fa-circle-check"></i></div>' : ''}
             `;
             choiceContainer.appendChild(optBtn);
         });
 
         if (isMultiChoice) {
             const multiHint = document.createElement("div");
-            multiHint.className = "text-center text-xs font-semibold text-slate-500 pt-1";
+            multiHint.className = "col-span-full text-center text-xs font-semibold text-slate-500 pt-1";
             multiHint.innerHTML = `💡 <em>Можна обрати декілька правильних відповідей. Обрано: <strong>${selectedKeys.length > 0 ? selectedKeys.join(", ") : "жодної"}</strong></em>`;
             choiceContainer.appendChild(multiHint);
         }
+    } else if (isNumberLinePoint) {
+        if (numberLineContainer) numberLineContainer.classList.remove("hidden");
+        if (inputGroupContainer) inputGroupContainer.classList.remove("hidden");
+        if (signToggleBtn) signToggleBtn.classList.remove("hidden");
+        input.placeholder = "Координата точки (напр. -4)";
+        setupNumberLineWidget(task, "point");
+    } else if (isNumberLineRead) {
+        if (numberLineContainer) numberLineContainer.classList.remove("hidden");
+        if (inputGroupContainer) inputGroupContainer.classList.remove("hidden");
+        if (mathKeypad) mathKeypad.classList.remove("hidden");
+        if (signToggleBtn) signToggleBtn.classList.remove("hidden");
+        input.placeholder = "Введіть координату точки (напр. -5)";
+        setupNumberLineWidget(task, "read");
+    } else if (isNumberLineMidpoint) {
+        if (numberLineContainer) numberLineContainer.classList.remove("hidden");
+        if (inputGroupContainer) inputGroupContainer.classList.remove("hidden");
+        if (mathKeypad) mathKeypad.classList.remove("hidden");
+        if (signToggleBtn) signToggleBtn.classList.remove("hidden");
+        input.placeholder = "Координата середини (напр. -2)";
+        setupNumberLineWidget(task, "midpoint");
+    } else if (isCoordinatePlaneRect) {
+        if (coordinatePlaneContainer) coordinatePlaneContainer.classList.remove("hidden");
+        if (inputGroupContainer) inputGroupContainer.classList.add("hidden");
+        setupCoordinatePlaneWidget(task);
     } else if (isSignSequence) {
         if (inputGroupContainer) inputGroupContainer.classList.remove("hidden");
         if (signSequenceContainer) signSequenceContainer.classList.remove("hidden");
@@ -991,7 +1029,15 @@ function renderActiveTask() {
         setupPrimeFactorizationState(task);
     } else {
         if (inputGroupContainer) inputGroupContainer.classList.remove("hidden");
-        if (isMathTask) {
+        if (currentRoomCode === "math-6-control-2") {
+            if (mathKeypad) mathKeypad.classList.remove("hidden");
+            if (signToggleBtn) signToggleBtn.classList.remove("hidden");
+            if (task.task_order === 21 || task.task_order === 22) {
+                input.placeholder = "-10;-20";
+            } else {
+                input.placeholder = "-10";
+            }
+        } else if (isMathTask) {
             if (mathKeypad) mathKeypad.classList.remove("hidden");
             if (signToggleBtn) signToggleBtn.classList.remove("hidden");
             input.placeholder = "Ваше число";
@@ -1224,6 +1270,423 @@ function undoPrimeFactor() {
     }
 }
 
+// NUMBER LINE & COORDINATE PLANE WIDGET STATES
+let currentNumberLineState = {
+    mode: "point",
+    selectedCoord: null,
+    targetPoint: "A",
+    pointsToDisplay: [],
+    minX: -8,
+    maxX: 8
+};
+
+let currentCoordinatePlaneState = {
+    targetVertices: [
+        { name: "A", x: -3, y: -2 },
+        { name: "B", x: 3, y: -2 },
+        { name: "C", x: 3, y: 2 },
+        { name: "D", x: -3, y: 2 }
+    ],
+    points: [],
+    perimeter: "",
+    area: ""
+};
+
+function setupNumberLineWidget(task, mode) {
+    currentNumberLineState.mode = mode;
+    currentNumberLineState.minX = -8;
+    currentNumberLineState.maxX = 8;
+    currentNumberLineState.pointsToDisplay = [];
+
+    let opts = null;
+    if (task.options) {
+        try {
+            opts = typeof task.options === "string" ? JSON.parse(task.options) : task.options;
+        } catch (e) {
+            opts = null;
+        }
+    }
+    opts = opts || {};
+
+    const badgeEl = document.getElementById("number-line-badge");
+    const instrEl = document.getElementById("number-line-instruction");
+    const selBar = document.getElementById("number-line-selection-bar");
+    const selVal = document.getElementById("number-line-selected-val");
+
+    if (mode === "point") {
+        if (badgeEl) badgeEl.textContent = "Позначення точки на прямій";
+        if (instrEl) instrEl.textContent = "Натисніть на координатній прямій точку або поділку, щоб позначити координату:";
+        if (selBar) selBar.classList.remove("hidden");
+        currentNumberLineState.targetPoint = opts.target_point || "A";
+        const val = (task.last_answer !== undefined && task.last_answer !== null && task.last_answer !== "") ? parseInt(task.last_answer, 10) : null;
+        currentNumberLineState.selectedCoord = Number.isInteger(val) ? val : null;
+        if (selVal) {
+            selVal.textContent = currentNumberLineState.selectedCoord !== null ? `Точка ${currentNumberLineState.targetPoint}(${currentNumberLineState.selectedCoord})` : "не обрано";
+        }
+    } else if (mode === "read") {
+        if (badgeEl) badgeEl.textContent = "Визначення координати точки";
+        if (instrEl) instrEl.textContent = "Визначте координату позначеної точки на прямій та запишіть її значення в поле нижче:";
+        if (selBar) selBar.classList.add("hidden");
+        const ptName = opts.point_name || "K";
+        const ptCoord = (opts.point_coord !== undefined) ? opts.point_coord : -5;
+        currentNumberLineState.pointsToDisplay = [{ name: ptName, coord: ptCoord, color: "#e11d48" }];
+        currentNumberLineState.selectedCoord = null;
+    } else if (mode === "midpoint") {
+        if (badgeEl) badgeEl.textContent = "Середина відрізка на прямій";
+        if (instrEl) instrEl.textContent = "Знайдіть координату середини відрізка AB на прямій та введіть її значення в поле нижче:";
+        if (selBar) selBar.classList.add("hidden");
+        const ptA = opts.pointA || { name: "A", coord: -7 };
+        const ptB = opts.pointB || { name: "B", coord: 3 };
+        currentNumberLineState.pointsToDisplay = [
+            { name: ptA.name, coord: ptA.coord, color: "#4f46e5" },
+            { name: ptB.name, coord: ptB.coord, color: "#4f46e5" }
+        ];
+        currentNumberLineState.selectedCoord = null;
+    }
+
+    renderNumberLineSvg();
+}
+
+function renderNumberLineSvg() {
+    const wrapper = document.getElementById("number-line-svg-wrapper");
+    if (!wrapper) return;
+
+    const minX = currentNumberLineState.minX || -8;
+    const maxX = currentNumberLineState.maxX || 8;
+    const mode = currentNumberLineState.mode;
+    const selCoord = currentNumberLineState.selectedCoord;
+    const pts = currentNumberLineState.pointsToDisplay || [];
+
+    const totalWidth = 620;
+    const totalHeight = 100;
+    const xMargin = 45;
+    const width = totalWidth - 2 * xMargin;
+    const yBase = 52;
+    const dx = width / (maxX - minX);
+
+    function xToPx(x) {
+        return xMargin + (x - minX) * dx;
+    }
+
+    let svgHtml = `<svg viewBox="0 0 ${totalWidth} ${totalHeight}" class="w-full h-auto select-none overflow-visible" style="max-width: ${totalWidth}px;">`;
+
+    // Midpoint segment line if midpoint mode
+    if (mode === "midpoint" && pts.length >= 2) {
+        const x1 = xToPx(pts[0].coord);
+        const x2 = xToPx(pts[1].coord);
+        const segMin = Math.min(x1, x2);
+        const segMax = Math.max(x1, x2);
+        svgHtml += `
+            <line x1="${segMin}" y1="${yBase - 18}" x2="${segMax}" y2="${yBase - 18}" stroke="#6366f1" stroke-width="3.5" stroke-linecap="round" />
+            <line x1="${segMin}" y1="${yBase - 24}" x2="${segMin}" y2="${yBase - 12}" stroke="#6366f1" stroke-width="2.5" />
+            <line x1="${segMax}" y1="${yBase - 24}" x2="${segMax}" y2="${yBase - 12}" stroke="#6366f1" stroke-width="2.5" />
+            <rect x="${(segMin + segMax)/2 - 42}" y="${yBase - 36}" width="84" height="18" rx="5" fill="#eef2ff" stroke="#c7d2fe" />
+            <text x="${(segMin + segMax)/2}" y="${yBase - 23}" text-anchor="middle" font-size="11" font-weight="bold" fill="#4338ca">Відрізок AB</text>
+        `;
+    }
+
+    // Main axis line
+    svgHtml += `
+        <line x1="${xMargin - 20}" y1="${yBase}" x2="${totalWidth - xMargin + 25}" y2="${yBase}" stroke="#1e293b" stroke-width="2.5" />
+        <polygon points="${totalWidth - xMargin + 25},${yBase} ${totalWidth - xMargin + 14},${yBase - 5} ${totalWidth - xMargin + 14},${yBase + 5}" fill="#1e293b" />
+        <text x="${totalWidth - xMargin + 32}" y="${yBase + 5}" font-size="14" font-weight="bold" fill="#0f172a" font-family="sans-serif">x</text>
+    `;
+
+    // Draw ticks & labels
+    for (let i = minX; i <= maxX; i++) {
+        const px = xToPx(i);
+        const isZero = (i === 0);
+        const tickH = isZero ? 20 : 10;
+        const tickColor = isZero ? "#2563eb" : "#64748b";
+        const strokeW = isZero ? "2.5" : "1.5";
+
+        svgHtml += `<line x1="${px}" y1="${yBase - tickH/2}" x2="${px}" y2="${yBase + tickH/2}" stroke="${tickColor}" stroke-width="${strokeW}" />`;
+        svgHtml += `<text x="${px}" y="${yBase + 24}" text-anchor="middle" font-size="${isZero ? '14' : '11.5'}" font-weight="${isZero ? '900' : 'bold'}" fill="${isZero ? '#1d4ed8' : '#475569'}" font-family="monospace">${i}</text>`;
+
+        if (isZero) {
+            svgHtml += `<text x="${px}" y="${yBase - 14}" text-anchor="middle" font-size="11" font-weight="900" fill="#2563eb" font-family="sans-serif">O(0)</text>`;
+        }
+
+        // Clickable hotspot if mode === "point"
+        if (mode === "point") {
+            svgHtml += `
+                <circle cx="${px}" cy="${yBase}" r="15" fill="transparent" class="cursor-pointer" onclick="handleNumberLineClick(${i})" style="cursor:pointer;" />
+            `;
+        }
+    }
+
+    // Selected active point for point mode
+    if (mode === "point" && selCoord !== null) {
+        const px = xToPx(selCoord);
+        const ptLabel = currentNumberLineState.targetPoint || "A";
+        svgHtml += `
+            <circle cx="${px}" cy="${yBase}" r="14" fill="#3b82f6" fill-opacity="0.3" class="animate-pulse" />
+            <circle cx="${px}" cy="${yBase}" r="6.5" fill="#2563eb" stroke="#ffffff" stroke-width="2.5" />
+            <rect x="${px - 22}" y="${yBase - 36}" width="44" height="20" rx="6" fill="#1d4ed8" />
+            <text x="${px}" y="${yBase - 22}" text-anchor="middle" font-size="11.5" font-weight="900" fill="#ffffff" font-family="sans-serif">${ptLabel}(${selCoord})</text>
+        `;
+    }
+
+    // Read / Midpoint displayed points
+    pts.forEach(pt => {
+        const px = xToPx(pt.coord);
+        const col = pt.color || "#4f46e5";
+        svgHtml += `
+            <line x1="${px}" y1="${yBase - 26}" x2="${px}" y2="${yBase}" stroke="${col}" stroke-width="2" stroke-dasharray="3,2" />
+            <circle cx="${px}" cy="${yBase}" r="7" fill="${col}" stroke="#ffffff" stroke-width="2.5" />
+            <rect x="${px - 15}" y="${yBase - 40}" width="30" height="20" rx="6" fill="${col}" />
+            <text x="${px}" y="${yBase - 26}" text-anchor="middle" font-size="12" font-weight="900" fill="#ffffff" font-family="sans-serif">${pt.name}</text>
+        `;
+    });
+
+    svgHtml += `</svg>`;
+    wrapper.innerHTML = svgHtml;
+}
+
+function handleNumberLineClick(coord) {
+    const task = tasksList[currentTaskIndex];
+    if (task && task.is_solved) return;
+
+    currentNumberLineState.selectedCoord = coord;
+    const input = document.getElementById("answer-input");
+    if (input) {
+        input.value = String(coord);
+    }
+    if (task) {
+        task.last_answer = String(coord);
+    }
+    const selVal = document.getElementById("number-line-selected-val");
+    if (selVal) {
+        selVal.textContent = `Точка ${currentNumberLineState.targetPoint}(${coord})`;
+    }
+    renderNumberLineSvg();
+}
+
+function setupCoordinatePlaneWidget(task) {
+    let opts = null;
+    if (task.options) {
+        try {
+            opts = typeof task.options === "string" ? JSON.parse(task.options) : task.options;
+        } catch (e) {
+            opts = null;
+        }
+    }
+    opts = opts || {};
+
+    currentCoordinatePlaneState.targetVertices = opts.vertices || [
+        { name: "A", x: -3, y: -2 },
+        { name: "B", x: 3, y: -2 },
+        { name: "C", x: 3, y: 2 },
+        { name: "D", x: -3, y: 2 }
+    ];
+
+    currentCoordinatePlaneState.points = [];
+    currentCoordinatePlaneState.perimeter = "";
+    currentCoordinatePlaneState.area = "";
+
+    const pInput = document.getElementById("rect-perimeter-input");
+    const sInput = document.getElementById("rect-area-input");
+
+    // Restore answers if available
+    const rawAns = task.last_answer || "";
+    if (rawAns) {
+        const pMatch = rawAns.match(/P[=:\s]*(\d+)/i) || rawAns.match(/^(\d+)[\s,;]+(\d+)/);
+        const sMatch = rawAns.match(/S[=:\s]*(\d+)/i);
+        if (pMatch && sMatch) {
+            if (pInput) pInput.value = pMatch[1];
+            if (sInput) sInput.value = sMatch[1];
+        } else if (pMatch && pMatch[2]) {
+            if (pInput) pInput.value = pMatch[1];
+            if (sInput) sInput.value = pMatch[2];
+        }
+    } else {
+        if (pInput) pInput.value = "";
+        if (sInput) sInput.value = "";
+    }
+
+    renderCoordinatePlaneSvg();
+}
+
+function renderCoordinatePlaneSvg() {
+    const wrapper = document.getElementById("coordinate-plane-svg-wrapper");
+    if (!wrapper) return;
+
+    const totalWidth = 440;
+    const totalHeight = 380;
+    const cx = 220;
+    const cy = 190;
+    const step = 28;
+    const minX = -6, maxX = 6, minY = -5, maxY = 5;
+
+    function toSvgX(gx) { return cx + gx * step; }
+    function toSvgY(gy) { return cy - gy * step; }
+
+    let svgHtml = `<svg id="coord-plane-svg" viewBox="0 0 ${totalWidth} ${totalHeight}" class="w-full h-auto select-none" style="max-width: 440px; cursor: crosshair;" onclick="handleCoordinatePlaneClick(event)">`;
+
+    // Background Grid lines
+    for (let x = minX; x <= maxX; x++) {
+        const px = toSvgX(x);
+        svgHtml += `<line x1="${px}" y1="${toSvgY(maxY)}" x2="${px}" y2="${toSvgY(minY)}" stroke="#e2e8f0" stroke-width="1" />`;
+    }
+    for (let y = minY; y <= maxY; y++) {
+        const py = toSvgY(y);
+        svgHtml += `<line x1="${toSvgX(minX)}" y1="${py}" x2="${toSvgX(maxX)}" y2="${py}" stroke="#e2e8f0" stroke-width="1" />`;
+    }
+
+    // Axes
+    svgHtml += `
+        <!-- X Axis -->
+        <line x1="20" y1="${cy}" x2="${totalWidth - 15}" y2="${cy}" stroke="#334155" stroke-width="2.5" />
+        <polygon points="${totalWidth - 15},${cy} ${totalWidth - 25},${cy - 5} ${totalWidth - 25},${cy + 5}" fill="#334155" />
+        <text x="${totalWidth - 12}" y="${cy + 4}" font-size="13" font-weight="900" fill="#0f172a" font-family="sans-serif">x</text>
+
+        <!-- Y Axis -->
+        <line x1="${cx}" y1="${totalHeight - 20}" x2="${cx}" y2="15" stroke="#334155" stroke-width="2.5" />
+        <polygon points="${cx},15 ${cx - 5},25 ${cx + 5},25" fill="#334155" />
+        <text x="${cx + 8}" y="18" font-size="13" font-weight="900" fill="#0f172a" font-family="sans-serif">y</text>
+    `;
+
+    // X Axis Ticks and Labels
+    for (let x = minX; x <= maxX; x++) {
+        if (x === 0) continue;
+        const px = toSvgX(x);
+        svgHtml += `<line x1="${px}" y1="${cy - 4}" x2="${px}" y2="${cy + 4}" stroke="#64748b" stroke-width="1.5" />`;
+        svgHtml += `<text x="${px}" y="${cy + 16}" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#64748b" font-family="monospace">${x}</text>`;
+    }
+
+    // Y Axis Ticks and Labels
+    for (let y = minY; y <= maxY; y++) {
+        if (y === 0) continue;
+        const py = toSvgY(y);
+        svgHtml += `<line x1="${cx - 4}" y1="${py}" x2="${cx + 4}" stroke="#64748b" stroke-width="1.5" />`;
+        svgHtml += `<text x="${cx - 9}" y="${py + 3.5}" text-anchor="end" font-size="10.5" font-weight="bold" fill="#64748b" font-family="monospace">${y}</text>`;
+    }
+
+    // Origin 0
+    svgHtml += `<text x="${cx - 7}" y="${cy + 14}" text-anchor="end" font-size="11" font-weight="bold" fill="#64748b" font-family="monospace">0</text>`;
+
+    // If 4 points placed, draw polygon connecting them
+    const pts = currentCoordinatePlaneState.points || [];
+    if (pts.length === 4) {
+        // Sort points geometrically in clockwise order around centroid
+        const avgX = pts.reduce((acc, p) => acc + p.x, 0) / 4;
+        const avgY = pts.reduce((acc, p) => acc + p.y, 0) / 4;
+        const sorted = pts.slice().sort((a, b) => Math.atan2(a.y - avgY, a.x - avgX) - Math.atan2(b.y - avgY, b.x - avgX));
+        const polyPoints = sorted.map(p => `${toSvgX(p.x)},${toSvgY(p.y)}`).join(" ");
+
+        svgHtml += `
+            <polygon points="${polyPoints}" fill="rgba(16, 185, 129, 0.25)" stroke="#059669" stroke-width="3" stroke-linejoin="round" />
+        `;
+    }
+
+    // Draw points
+    pts.forEach(p => {
+        const px = toSvgX(p.x);
+        const py = toSvgY(p.y);
+        svgHtml += `
+            <circle cx="${px}" cy="${py}" r="11" fill="#10b981" fill-opacity="0.3" class="animate-pulse" />
+            <circle cx="${px}" cy="${py}" r="6.5" fill="#059669" stroke="#ffffff" stroke-width="2.5" />
+            <rect x="${px + 8}" y="${py - 20}" width="54" height="18" rx="4" fill="#047857" />
+            <text x="${px + 35}" y="${py - 7}" text-anchor="middle" font-size="10.5" font-weight="900" fill="#ffffff" font-family="sans-serif">${p.name}(${p.x},${p.y})</text>
+        `;
+    });
+
+    svgHtml += `</svg>`;
+    wrapper.innerHTML = svgHtml;
+
+    // Update target badges
+    const targetVerts = currentCoordinatePlaneState.targetVertices || [];
+    ["A", "B", "C", "D"].forEach(name => {
+        const badge = document.getElementById(`vtx-badge-${name}`);
+        const target = targetVerts.find(v => v.name === name);
+        if (!badge || !target) return;
+
+        const isPlaced = pts.some(p => p.x === target.x && p.y === target.y);
+        if (isPlaced) {
+            badge.className = "px-2.5 py-1 rounded-xl bg-emerald-100 border border-emerald-300 text-xs font-bold text-emerald-800 flex items-center gap-1.5";
+            badge.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-600"></i> ${target.name}(${target.x}, ${target.y})`;
+        } else {
+            badge.className = "px-2.5 py-1 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 flex items-center gap-1.5";
+            badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-300"></span> ${target.name}(${target.x}, ${target.y})`;
+        }
+    });
+}
+
+function handleCoordinatePlaneClick(e) {
+    const task = tasksList[currentTaskIndex];
+    if (task && task.is_solved) return;
+
+    const svg = document.getElementById("coord-plane-svg");
+    if (!svg) return;
+
+    const rect = svg.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
+
+    const totalWidth = 440;
+    const totalHeight = 380;
+    const scaleX = totalWidth / rect.width;
+    const scaleY = totalHeight / rect.height;
+
+    const svgX = px * scaleX;
+    const svgY = py * scaleY;
+    const cx = 220;
+    const cy = 190;
+    const step = 28;
+
+    const gx = Math.round((svgX - cx) / step);
+    const gy = Math.round((cy - svgY) / step);
+
+    if (gx < -6 || gx > 6 || gy < -5 || gy > 5) return;
+
+    const existingIndex = currentCoordinatePlaneState.points.findIndex(p => p.x === gx && p.y === gy);
+    if (existingIndex >= 0) {
+        currentCoordinatePlaneState.points.splice(existingIndex, 1);
+    } else {
+        if (currentCoordinatePlaneState.points.length < 4) {
+            const names = ["A", "B", "C", "D"];
+            const used = currentCoordinatePlaneState.points.map(p => p.name);
+            const nextName = names.find(n => !used.includes(n)) || "P";
+            currentCoordinatePlaneState.points.push({ x: gx, y: gy, name: nextName });
+        }
+    }
+
+    renderCoordinatePlaneSvg();
+    updateRectangleInputs();
+}
+
+function resetCoordinatePlanePoints() {
+    const task = tasksList[currentTaskIndex];
+    if (task && task.is_solved) return;
+
+    currentCoordinatePlaneState.points = [];
+    renderCoordinatePlaneSvg();
+    updateRectangleInputs();
+}
+
+function updateRectangleInputs() {
+    const pInput = document.getElementById("rect-perimeter-input");
+    const sInput = document.getElementById("rect-area-input");
+    const mainInput = document.getElementById("answer-input");
+    const task = tasksList[currentTaskIndex];
+
+    const pVal = pInput ? pInput.value.trim() : "";
+    const sVal = sInput ? sInput.value.trim() : "";
+
+    if (pVal && sVal) {
+        mainInput.value = `P=${pVal}, S=${sVal}`;
+        if (task) task.last_answer = mainInput.value;
+    } else if (pVal) {
+        mainInput.value = `P=${pVal}`;
+        if (task) task.last_answer = mainInput.value;
+    } else if (sVal) {
+        mainInput.value = `S=${sVal}`;
+        if (task) task.last_answer = mainInput.value;
+    } else {
+        mainInput.value = "";
+    }
+}
+
 function showFeedback(isCorrect, message, hint) {
     const feedbackBox = document.getElementById("feedback-box");
     const icon = document.getElementById("feedback-icon");
@@ -1249,6 +1712,20 @@ async function handleAnswerSubmit(e) {
     if (e) e.preventDefault();
     const task = tasksList[currentTaskIndex];
     if (!task) return;
+
+    if (task.task_type === "coordinate_plane_rect") {
+        if (currentCoordinatePlaneState.points.length < 4) {
+            showFeedback(false, "Будь ласка, позначте всі 4 вершини прямокутника на координатній площині!", "Клацніть на площині по черзі по точках A, B, C, D");
+            return;
+        }
+        const pInput = document.getElementById("rect-perimeter-input");
+        const sInput = document.getElementById("rect-area-input");
+        if (!pInput || !sInput || !pInput.value.trim() || !sInput.value.trim()) {
+            showFeedback(false, "Будь ласка, введіть значення для периметра (P) та площі (S)!", "Обчисліть довжини сторін і внесіть P та S");
+            return;
+        }
+        updateRectangleInputs();
+    }
 
     const input = document.getElementById("answer-input");
     const answer = (input.value || task.last_answer || "").trim();

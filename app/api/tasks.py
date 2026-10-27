@@ -45,12 +45,18 @@ def check_answer_match(submitted: str, correct_spec: str) -> bool:
         if sub_letters and opt_letters and sub_letters == opt_letters:
             return True
 
-    # 3. Check prime factors list match (e.g. "2, 2, 2, 3, 3, 7" vs "2*2*2*3*3*7")
-    sub_numbers = [int(n) for n in re.findall(r'\d+', norm_sub)]
+    # 3. Check prime factors list / equation roots match (e.g. "-2; 4" vs "4; -2", "2, 2, 3" vs "2*2*3")
+    def extract_signed_numbers(text: str):
+        return [float(x) for x in re.findall(r'[-+]?\d+(?:\.\d+)?', text)]
+
+    sub_signed = extract_signed_numbers(norm_sub)
     for opt in options:
-        opt_numbers = [int(n) for n in re.findall(r'\d+', normalize_general_answer(opt))]
-        if len(sub_numbers) > 1 and len(opt_numbers) > 1:
-            if sorted(sub_numbers) == sorted(opt_numbers):
+        opt_signed = extract_signed_numbers(normalize_general_answer(opt))
+        if sub_signed and opt_signed and len(sub_signed) > 1 and len(opt_signed) > 1:
+            if sorted(sub_signed) == sorted(opt_signed):
+                return True
+        if sub_signed and opt_signed and sorted(set(sub_signed)) == sorted(set(opt_signed)):
+            if len(set(opt_signed)) == 1 and len(set(sub_signed)) == 1:
                 return True
 
     # 4. Check algebraic equivalents (e.g. "0a" matches "0", "1x" matches "x", "-1x" matches "-x")
