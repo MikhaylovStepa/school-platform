@@ -55,7 +55,9 @@ def check_answer_match(submitted: str, correct_spec: str) -> bool:
         if sub_signed and opt_signed and len(sub_signed) > 1 and len(opt_signed) > 1:
             if sorted(sub_signed) == sorted(opt_signed):
                 return True
-        if sub_signed and opt_signed and sorted(set(sub_signed)) == sorted(set(opt_signed)):
+        if sub_signed and opt_signed and set(sub_signed) == set(opt_signed):
+            if sorted(sub_signed) == sorted(opt_signed):
+                return True
             if len(set(opt_signed)) == 1 and len(set(sub_signed)) == 1:
                 return True
 
@@ -88,12 +90,12 @@ def check_answer_match(submitted: str, correct_spec: str) -> bool:
     for opt in options:
         norm_opt = normalize_general_answer(opt)
         try:
-            sub_num_str = re.sub(r'[^\d\.\-]', '', norm_sub)
-            opt_num_str = re.sub(r'[^\d\.\-]', '', norm_opt)
-            if sub_num_str and opt_num_str and not any(c.isalpha() for c in norm_sub) and not any(c.isalpha() for c in norm_opt):
-                sub_num = float(sub_num_str)
-                opt_num = float(opt_num_str)
-                if abs(sub_num - opt_num) < 0.06 or (opt_num != 0 and abs(sub_num - opt_num) / opt_num < 0.05):
+            sub_nums = extract_signed_numbers(norm_sub)
+            opt_nums = extract_signed_numbers(norm_opt)
+            if len(sub_nums) == 1 and len(opt_nums) == 1 and not any(c.isalpha() for c in norm_sub) and not any(c.isalpha() for c in norm_opt):
+                sub_num = sub_nums[0]
+                opt_num = opt_nums[0]
+                if abs(sub_num - opt_num) < 0.06 or (opt_num != 0 and abs(sub_num - opt_num) / abs(opt_num) < 0.05):
                     return True
         except Exception:
             pass

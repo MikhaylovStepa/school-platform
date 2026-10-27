@@ -843,7 +843,7 @@ class TestSchoolPlatform(unittest.TestCase):
         tasks = tasks_resp.json()["tasks"]
         self.assertEqual(len(tasks), 23)
 
-        # 4. Tasks 1-20: Arithmetic with integers
+        # 4. Tasks 1-20: Arithmetic with integers (verify correct and incorrect answers)
         arithmetic_expected = [
             "-18", "-5", "-11", "9", "-20", "7", "-11", "5", "-19", "17",
             "-7", "-20", "-42", "-40", "36", "56", "-4", "5", "-7", "-8"
@@ -851,6 +851,16 @@ class TestSchoolPlatform(unittest.TestCase):
         for i in range(20):
             t = tasks[i]
             expected = arithmetic_expected[i]
+            # Verify incorrect answer is rejected
+            wrong_sub = self.client.post("/api/tasks/submit", json={
+                "user_id": user_id,
+                "task_id": t["id"],
+                "submitted_answer": "999",
+                "room_code": "math-6-control-2"
+            })
+            self.assertFalse(wrong_sub.json()["is_correct"], f"Task {i+1} incorrectly accepted '999'")
+
+            # Verify correct answer is accepted
             sub = self.client.post("/api/tasks/submit", json={
                 "user_id": user_id,
                 "task_id": t["id"],
@@ -862,6 +872,14 @@ class TestSchoolPlatform(unittest.TestCase):
         # 5. Task 21: Equation with module |3x - 3| = 9 -> roots 4 and -2 (test order independence: "-2; 4")
         t21 = tasks[20]
         self.assertEqual(t21["task_order"], 21)
+        wrong_sub21 = self.client.post("/api/tasks/submit", json={
+            "user_id": user_id,
+            "task_id": t21["id"],
+            "submitted_answer": "4; 2",
+            "room_code": "math-6-control-2"
+        })
+        self.assertFalse(wrong_sub21.json()["is_correct"])
+
         sub21 = self.client.post("/api/tasks/submit", json={
             "user_id": user_id,
             "task_id": t21["id"],
@@ -873,6 +891,14 @@ class TestSchoolPlatform(unittest.TestCase):
         # 6. Task 22: Equation (x + 3) * (2x + 6) = 0 -> root -3
         t22 = tasks[21]
         self.assertEqual(t22["task_order"], 22)
+        wrong_sub22 = self.client.post("/api/tasks/submit", json={
+            "user_id": user_id,
+            "task_id": t22["id"],
+            "submitted_answer": "3",
+            "room_code": "math-6-control-2"
+        })
+        self.assertFalse(wrong_sub22.json()["is_correct"])
+
         sub22 = self.client.post("/api/tasks/submit", json={
             "user_id": user_id,
             "task_id": t22["id"],
@@ -884,6 +910,14 @@ class TestSchoolPlatform(unittest.TestCase):
         # 7. Task 23: Practical problem -> -10
         t23 = tasks[22]
         self.assertEqual(t23["task_order"], 23)
+        wrong_sub23 = self.client.post("/api/tasks/submit", json={
+            "user_id": user_id,
+            "task_id": t23["id"],
+            "submitted_answer": "10",
+            "room_code": "math-6-control-2"
+        })
+        self.assertFalse(wrong_sub23.json()["is_correct"])
+
         sub23 = self.client.post("/api/tasks/submit", json={
             "user_id": user_id,
             "task_id": t23["id"],
@@ -899,7 +933,7 @@ class TestSchoolPlatform(unittest.TestCase):
         student_entry = next((s for s in dash_data["students"] if s["user_id"] == user_id), None)
         self.assertIsNotNone(student_entry)
         self.assertEqual(student_entry["solved_count"], 23)
-        self.assertEqual(student_entry["total_attempts"], 23)
+        self.assertEqual(student_entry["total_attempts"], 46)
 
 if __name__ == "__main__":
     unittest.main()
