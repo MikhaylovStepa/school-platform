@@ -1,5 +1,6 @@
 import unittest
 import uuid
+import json
 from pathlib import Path
 from fastapi.testclient import TestClient
 from app.main import app
@@ -37,7 +38,7 @@ class TestSchoolPlatform(unittest.TestCase):
         
         math = next((s for s in grade6["subjects"] if s["slug"] == "math"), None)
         self.assertIsNotNone(math)
-        self.assertEqual(len(math["topics"]), 22)
+        self.assertEqual(len(math["topics"]), 23)
 
         expected_room_codes = {
             "math-6-add", "math-6-add-2", "math-6-add-3",
@@ -48,7 +49,8 @@ class TestSchoolPlatform(unittest.TestCase):
             "math-6-abs", "math-6-opp",
             "math-6-coefficient", "math-6-brackets-signs",
             "math-6-combining-like-terms", "math-6-divisibility",
-            "math-6-prime-factorization", "math-6-control-1", "math-6-control-2"
+            "math-6-prime-factorization", "math-6-gcd-lcm",
+            "math-6-control-1", "math-6-control-2"
         }
         actual_room_codes = {t["room_code"] for t in math["topics"]}
         self.assertTrue(expected_room_codes.issubset(actual_room_codes))
@@ -56,6 +58,8 @@ class TestSchoolPlatform(unittest.TestCase):
         for topic in math["topics"]:
             if topic["room_code"] == "math-6-prime-factorization":
                 self.assertEqual(topic["tasks_count"], 5)
+            elif topic["room_code"] == "math-6-gcd-lcm":
+                self.assertEqual(topic["tasks_count"], 14)
             elif topic["room_code"] == "math-6-control-1":
                 self.assertEqual(topic["tasks_count"], 17)
             elif topic["room_code"] == "math-6-control-2":
@@ -934,6 +938,291 @@ class TestSchoolPlatform(unittest.TestCase):
         self.assertIsNotNone(student_entry)
         self.assertEqual(student_entry["solved_count"], 23)
         self.assertEqual(student_entry["total_attempts"], 46)
+
+    def test_17_grade_9_text_processing_test_flow(self):
+        """End-to-end test for Grade 9 Informatics: Comprehensive Test on Text Processing Systems (20 tasks)"""
+        # 1. Check hierarchy contains Grade 9 Informatics topic with 20 tasks
+        hierarchy = self.client.get("/api/hierarchy")
+        self.assertEqual(hierarchy.status_code, 200)
+        grade9 = next((g for g in hierarchy.json()["grades"] if g["slug"] == "grade-9"), None)
+        self.assertIsNotNone(grade9)
+        info_subj = next((s for s in grade9["subjects"] if s["slug"] == "informatics"), None)
+        self.assertIsNotNone(info_subj)
+        topic = next((t for t in info_subj["topics"] if t["room_code"] == "info-9-text-processing-test"), None)
+        self.assertIsNotNone(topic)
+        self.assertEqual(topic["tasks_count"], 20)
+
+        # 2. Authenticate Grade 9 student
+        device_id = f"test-dev-9-{uuid.uuid4()}"
+        auth_resp = self.client.post("/api/auth/student-session", json={
+            "name": "Анастасія Коваленко",
+            "device_id": device_id,
+            "grade_level": 9,
+            "class_letter": "А"
+        })
+        self.assertEqual(auth_resp.status_code, 200)
+        user_id = auth_resp.json()["user_id"]
+
+        # 3. Fetch topic tasks
+        tasks_resp = self.client.get(f"/api/tasks/topic/info-9-text-processing-test?user_id={user_id}")
+        self.assertEqual(tasks_resp.status_code, 200)
+        data = tasks_resp.json()
+        tasks = data["tasks"]
+        self.assertEqual(len(tasks), 20)
+
+        # Expected answers for all 20 tasks
+        expected_answers = [
+            # 1-4: Theme 1
+            "A",
+            "A, B, C, D, E",
+            "A",
+            "A, B, C, D",
+            # 5-8: Theme 2
+            "A, B, C, D, E",
+            "A",
+            "A",
+            "A, B, C, D",
+            # 9-11: Theme 3
+            "A",
+            "A, B, C",
+            "A",
+            # 12-14: Theme 4
+            "A",
+            "A",
+            "A, B, C",
+            # 15-17: Theme 5
+            "A",
+            "A",
+            "A, B, C, D",
+            # 18-20: Theme 6
+            "A",
+            "A, B, C, D, E",
+            "A"
+        ]
+
+        # 4. Solve each task, verifying wrong submissions are rejected and correct ones accepted
+        for i in range(20):
+            t = tasks[i]
+            correct_ans = expected_answers[i]
+
+            # Submit wrong answer
+            wrong_ans = "Z" if t["task_type"] == "choice" else "A, F"
+            wrong_sub = self.client.post("/api/tasks/submit", json={
+                "user_id": user_id,
+                "task_id": t["id"],
+                "submitted_answer": wrong_ans,
+                "room_code": "info-9-text-processing-test"
+            })
+            self.assertFalse(wrong_sub.json()["is_correct"], f"Task {i+1} incorrectly accepted '{wrong_ans}'")
+
+            # Submit correct answer (for multichoice, test reverse order e.g. "E, D, C, B, A")
+            submission_ans = correct_ans
+            if t["task_type"] == "multichoice":
+                items = [x.strip() for x in correct_ans.split(",")]
+                submission_ans = ", ".join(reversed(items))
+
+            sub = self.client.post("/api/tasks/submit", json={
+                "user_id": user_id,
+                "task_id": t["id"],
+                "submitted_answer": submission_ans,
+                "room_code": "info-9-text-processing-test"
+            })
+            self.assertTrue(sub.json()["is_correct"], f"Task {i+1} failed for correct answer '{submission_ans}': {sub.json()}")
+
+        # 5. Verify teacher dashboard monitoring
+        dash_resp = self.client.get("/api/teacher/rooms/info-9-text-processing-test/dashboard")
+        self.assertEqual(dash_resp.status_code, 200)
+        dash_data = dash_resp.json()
+        student_entry = next((s for s in dash_data["students"] if s["user_id"] == user_id), None)
+        self.assertIsNotNone(student_entry)
+        self.assertEqual(student_entry["solved_count"], 20)
+        self.assertEqual(student_entry["total_attempts"], 40)
+
+    def test_18_grade_8_coding_and_data_room(self):
+        """End-to-end test for Grade 8 Informatics: Coding and Decoding, Data Coding, Information Units (12 tasks)"""
+        # 1. Check hierarchy contains Grade 8 Informatics topic with 12 tasks
+        hierarchy = self.client.get("/api/hierarchy")
+        self.assertEqual(hierarchy.status_code, 200)
+        grade8 = next((g for g in hierarchy.json()["grades"] if g["slug"] == "grade-8"), None)
+        self.assertIsNotNone(grade8)
+        info_subj = next((s for s in grade8["subjects"] if s["slug"] == "informatics"), None)
+        self.assertIsNotNone(info_subj)
+        topic = next((t for t in info_subj["topics"] if t["room_code"] == "info-8-data-coding"), None)
+        self.assertIsNotNone(topic)
+        self.assertEqual(topic["tasks_count"], 12)
+
+        # 2. Authenticate Grade 8 student
+        device_id = f"test-dev-8-coding-{uuid.uuid4()}"
+        auth_resp = self.client.post("/api/auth/student-session", json={
+            "name": "Максим Бондаренко",
+            "device_id": device_id,
+            "grade_level": 8,
+            "class_letter": "Б"
+        })
+        self.assertEqual(auth_resp.status_code, 200)
+        user_id = auth_resp.json()["user_id"]
+
+        # 3. Fetch topic tasks
+        tasks_resp = self.client.get(f"/api/tasks/topic/info-8-data-coding?user_id={user_id}")
+        self.assertEqual(tasks_resp.status_code, 200)
+        data = tasks_resp.json()
+        tasks = data["tasks"]
+        self.assertEqual(len(tasks), 12)
+
+        expected_answers = [
+            "B",          # Task 1 (choice)
+            "A, C, D",    # Task 2 (multichoice)
+            "C",          # Task 3 (choice)
+            "A, B, C",    # Task 4 (multichoice)
+            "B",          # Task 5 (choice)
+            "A, B, D",    # Task 6 (multichoice)
+            "C",          # Task 7 (choice)
+            "B",          # Task 8 (choice)
+            "C",          # Task 9 (choice)
+            "A, B, D",    # Task 10 (multichoice)
+            "B",          # Task 11 (choice)
+            "B"           # Task 12 (choice)
+        ]
+
+        for i in range(12):
+            t = tasks[i]
+            correct_ans = expected_answers[i]
+
+            # Submit wrong answer
+            wrong_ans = "Z" if t["task_type"] == "choice" else "A, F"
+            wrong_sub = self.client.post("/api/tasks/submit", json={
+                "user_id": user_id,
+                "task_id": t["id"],
+                "submitted_answer": wrong_ans,
+                "room_code": "info-8-data-coding"
+            })
+            self.assertFalse(wrong_sub.json()["is_correct"], f"Task {i+1} incorrectly accepted '{wrong_ans}'")
+
+            # Submit correct answer (permuting multichoice to test permutation robustness)
+            submission_ans = correct_ans
+            if t["task_type"] == "multichoice":
+                items = [x.strip() for x in correct_ans.split(",")]
+                submission_ans = ", ".join(reversed(items))
+
+            sub = self.client.post("/api/tasks/submit", json={
+                "user_id": user_id,
+                "task_id": t["id"],
+                "submitted_answer": submission_ans,
+                "room_code": "info-8-data-coding"
+            })
+            self.assertTrue(sub.json()["is_correct"], f"Task {i+1} failed for correct answer '{submission_ans}': {sub.json()}")
+
+        # 4. Check Teacher Dashboard
+        dash_resp = self.client.get("/api/teacher/rooms/info-8-data-coding/dashboard")
+        self.assertEqual(dash_resp.status_code, 200)
+        dash_data = dash_resp.json()
+        student_entry = next((s for s in dash_data["students"] if s["user_id"] == user_id), None)
+        self.assertIsNotNone(student_entry)
+        self.assertEqual(student_entry["solved_count"], 12)
+        self.assertEqual(student_entry["total_attempts"], 24)
+
+    def test_19_gcd_lcm_topic_and_tasks(self):
+        device_id = f"test-dev-gcd-{uuid.uuid4()}"
+        auth_resp = self.client.post("/api/auth/student-session", json={
+            "name": "Оксана Ковальчук",
+            "device_id": device_id,
+            "grade_level": 6,
+            "class_letter": "Б"
+        })
+        self.assertEqual(auth_resp.status_code, 200)
+        user_id = auth_resp.json()["user_id"]
+
+        # 1. Fetch topic tasks
+        tasks_resp = self.client.get(f"/api/tasks/topic/math-6-gcd-lcm?user_id={user_id}")
+        self.assertEqual(tasks_resp.status_code, 200)
+        data = tasks_resp.json()
+        tasks = data["tasks"]
+        self.assertEqual(len(tasks), 14)
+
+        # Expected answers for all 14 tasks
+        expected_answers = [
+            "A, B, D",          # Task 1 (common divisors of 18 and 24)
+            "A, B, E",          # Task 2 (common divisors of 30 and 45)
+            "A, B, C, E",       # Task 3 (common divisors of 48 and 72)
+            "A, B, C, E",       # Task 4 (common divisors of 24, 36 and 60)
+            "A, B, D",          # Task 5 (multiples of 6)
+            "A, C, D",          # Task 6 (multiples of 8)
+            "A, B, D",          # Task 7 (multiples of 12)
+            "A, B, D, E",       # Task 8 (multiples of 15)
+            "A, B, D",          # Task 9 (mutually prime pairs: 14 & 15, 8 & 9, 21 & 25)
+            "A, B, D",          # Task 10 (mutually prime pairs: 10 & 21, 16 & 27, 35 & 36)
+            "2, 2, 2, 3",       # Task 11 (GCD(72, 96) prime factors)
+            "18",               # Task 12 (GCD(36, 54, 72))
+            "84",               # Task 13 (LCM(28, 42))
+            "180"               # Task 14 (LCM(12, 15, 18))
+        ]
+
+        # 2. Test Task 11, 12, 13, 14 task types and factor error reporting
+        for task_idx in [10, 11, 12, 13]:
+            t = tasks[task_idx]
+            self.assertEqual(t["task_type"], "prime_factorization", f"Task {task_idx+1} should have task_type prime_factorization")
+            # Verify options contain numbers list
+            opts = json.loads(t["options"]) if isinstance(t["options"], str) else t["options"]
+            self.assertIn("numbers", opts)
+            self.assertTrue(len(opts["numbers"]) >= 2)
+
+        # Factor error reports for tasks 11, 12, 13, 14
+        factor_errors = [
+            (tasks[10], "Невірний множник: 5 для числа 72 (не ділиться націло)"),
+            (tasks[11], "Невірний множник: 5 для числа 36 (не ділиться націло)"),
+            (tasks[12], "Невірний множник: 5 для числа 28 (не ділиться націло)"),
+            (tasks[13], "Невірний множник: 7 для числа 12 (не ділиться націло)")
+        ]
+        for t, err_msg in factor_errors:
+            err_sub = self.client.post("/api/tasks/submit", json={
+                "user_id": user_id,
+                "task_id": t["id"],
+                "submitted_answer": err_msg,
+                "room_code": "math-6-gcd-lcm"
+            })
+            self.assertEqual(err_sub.status_code, 200)
+            self.assertFalse(err_sub.json()["is_correct"])
+
+        # 3. Test submitting wrong and correct answers for all 14 tasks
+        for i in range(14):
+            t = tasks[i]
+            correct_ans = expected_answers[i]
+
+            # Submit wrong answer
+            wrong_ans = "Z" if t["task_type"] == "choice" else "999"
+            if t["task_type"] == "multichoice":
+                wrong_ans = "X, Y"
+            wrong_sub = self.client.post("/api/tasks/submit", json={
+                "user_id": user_id,
+                "task_id": t["id"],
+                "submitted_answer": wrong_ans,
+                "room_code": "math-6-gcd-lcm"
+            })
+            self.assertFalse(wrong_sub.json()["is_correct"], f"Task {i+1} incorrectly accepted '{wrong_ans}'")
+
+            # Submit correct answer (with permutation if multichoice)
+            submission_ans = correct_ans
+            if t["task_type"] == "multichoice":
+                items = [x.strip() for x in correct_ans.split(",")]
+                submission_ans = ", ".join(reversed(items))
+
+            sub = self.client.post("/api/tasks/submit", json={
+                "user_id": user_id,
+                "task_id": t["id"],
+                "submitted_answer": submission_ans,
+                "room_code": "math-6-gcd-lcm"
+            })
+            self.assertTrue(sub.json()["is_correct"], f"Task {i+1} failed for correct answer '{submission_ans}': {sub.json()}")
+
+        # 4. Check Teacher Dashboard updates
+        dash_resp = self.client.get("/api/teacher/rooms/math-6-gcd-lcm/dashboard")
+        self.assertEqual(dash_resp.status_code, 200)
+        dash_data = dash_resp.json()
+        student_entry = next((s for s in dash_data["students"] if s["user_id"] == user_id), None)
+        self.assertIsNotNone(student_entry)
+        self.assertEqual(student_entry["solved_count"], 14)
+        # 4 initial factor error attempts + 14 wrong attempts + 14 correct attempts = 32 attempts
+        self.assertEqual(student_entry["total_attempts"], 32)
 
 if __name__ == "__main__":
     unittest.main()

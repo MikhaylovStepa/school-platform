@@ -369,12 +369,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     setupPresenceTracking();
     connectStudentWebSocket();
     renderSlide(0);
+
+    const answerInput = document.getElementById("answer-input");
+    if (answerInput) {
+        answerInput.addEventListener("input", () => {
+            updateFactorProductPreview();
+        });
+    }
 });
 
 let studentWs = null;
 let currentFactorizationState = {
-    originalNumber: 0,
-    factors: []
+    taskId: null,
+    numbers: [504],
+    activeNumberIndex: 0,
+    factorMap: {
+        504: []
+    }
 };
 
 function connectStudentWebSocket() {
@@ -450,6 +461,9 @@ function configureTopicWorkspace() {
     const isTextFormatsLesson = currentRoomCode === "info-9-formats";
     const isArchiveOperationsLesson = currentRoomCode === "info-8-archive-operations" || currentRoomCode === "info-8-final-archives";
     const isDocumentLayoutLesson = currentRoomCode === "info-9-document-layout";
+    const isSlideDeckLesson = isTextFormatsLesson || isArchiveOperationsLesson || currentRoomCode === "info-8-compress";
+    const hasLab = isTextFormatsLesson || isArchiveOperationsLesson || isDocumentLayoutLesson;
+
     slidesData = isTextFormatsLesson ? slidesData9 : slidesData8;
     currentSlideIndex = 0;
 
@@ -459,8 +473,13 @@ function configureTopicWorkspace() {
     const lab9Layout = document.getElementById("lab-9-layout-content");
     const labTitle = document.getElementById("tab-lab-title");
     const downloadBtn = document.getElementById("slide-pptx-download-btn");
+    const tabBtnLab = document.getElementById("tab-btn-lab");
+    const slideDeckViewer = document.getElementById("slide-deck-viewer");
 
-    if (lab8) lab8.classList.toggle("hidden", isTextFormatsLesson || isArchiveOperationsLesson || isDocumentLayoutLesson);
+    if (tabBtnLab) tabBtnLab.classList.toggle("hidden", !hasLab);
+    if (slideDeckViewer) slideDeckViewer.classList.toggle("hidden", !isSlideDeckLesson);
+
+    if (lab8) lab8.classList.toggle("hidden", isTextFormatsLesson || isArchiveOperationsLesson || isDocumentLayoutLesson || !hasLab);
     if (lab8Archives) lab8Archives.classList.toggle("hidden", !isArchiveOperationsLesson);
     if (lab9) lab9.classList.toggle("hidden", !isTextFormatsLesson);
     if (lab9Layout) lab9Layout.classList.toggle("hidden", !isDocumentLayoutLesson);
@@ -1025,7 +1044,15 @@ function renderActiveTask() {
     } else if (isPrimeFactor) {
         if (inputGroupContainer) inputGroupContainer.classList.remove("hidden");
         if (primeFactorContainer) primeFactorContainer.classList.remove("hidden");
-        input.placeholder = "Прості множники (напр. 2, 2, 2, 3, 3, 7)";
+        if (mathKeypad) mathKeypad.classList.remove("hidden");
+        if (signToggleBtn) signToggleBtn.classList.remove("hidden");
+        if (task.question.includes("НСД") || task.question.includes("найбільший спільний дільник")) {
+            input.placeholder = "НСД або спільні множники (напр. 24 або 2, 2, 2, 3)";
+        } else if (task.question.includes("НСК") || task.question.includes("найменше спільне кратне")) {
+            input.placeholder = "НСК або множники (напр. 84 або 2, 2, 3, 7)";
+        } else {
+            input.placeholder = "Прості множники (напр. 2, 2, 2, 3, 3, 7)";
+        }
         setupPrimeFactorizationState(task);
     } else {
         if (inputGroupContainer) inputGroupContainer.classList.remove("hidden");
@@ -1121,77 +1148,259 @@ function appendSign(sign) {
 }
 
 function setupPrimeFactorizationState(task) {
-    const match = task.question.match(/\b(\d+)\b/);
-    const startNum = match ? parseInt(match[1], 10) : 504;
-    
-    currentFactorizationState.originalNumber = startNum;
-    
-    if (task.last_answer && !task.last_answer.includes("множник") && !task.last_answer.includes("помилка") && !task.last_answer.includes("Невірний")) {
-        const parsed = task.last_answer.split(/[\s,·*]+/).map(n => parseInt(n, 10)).filter(n => !isNaN(n) && n > 1);
-        currentFactorizationState.factors = parsed;
-    } else {
-        currentFactorizationState.factors = [];
+    let numbers = [];
+    if (task.options) {
+        try {
+            const opts = typeof task.options === "string" ? JSON.parse(task.options) : task.options;
+            if (opts && typeof opts === "object") {
+                if (Array.isArray(opts.numbers) && opts.numbers.length > 0) {
+                    numbers = opts.numbers.map(n => parseInt(n, 10)).filter(n => !isNaN(n) && n > 1);
+                } else if (opts.start_number || opts.number) {
+                    numbers = [parseInt(opts.start_number || opts.number, 10)];
+                }
+            } else if (typeof opts === "number") {
+                numbers = [opts];
+            }
+        } catch (e) {}
     }
-    
+    if (!numbers || numbers.length === 0) {
+        const matches = (task.question || "").match(/\b(\d+)\b/g);
+        if (matches && matches.length > 0) {
+            numbers = matches.map(n => parseInt(n, 10)).filter(n => !isNaN(n) && n > 1);
+        }
+    }
+    if (!numbers || numbers.length === 0) {
+        numbers = [504];
+    }
+
+    if (currentFactorizationState.taskId !== task.id) {
+        currentFactorizationState.taskId = task.id;
+        currentFactorizationState.numbers = numbers;
+        currentFactorizationState.activeNumberIndex = 0;
+        currentFactorizationState.factorMap = {};
+        numbers.forEach(num => {
+            currentFactorizationState.factorMap[num] = [];
+        });
+
+        // For single number tasks, if task has prior answer, load it
+        if (numbers.length === 1 && task.last_answer && !task.last_answer.includes("множник") && !task.last_answer.includes("помилка") && !task.last_answer.includes("Невірний")) {
+            const parsed = task.last_answer.split(/[\s,·*xX×]+/).map(n => parseInt(n, 10)).filter(n => !isNaN(n) && n > 1);
+            currentFactorizationState.factorMap[numbers[0]] = parsed;
+        }
+    }
+
+    renderPrimeFactorLadder();
+    updateFactorProductPreview();
+}
+
+function setActiveFactorizationNumber(idx) {
+    if (idx < 0 || idx >= currentFactorizationState.numbers.length) return;
+    currentFactorizationState.activeNumberIndex = idx;
     renderPrimeFactorLadder();
 }
 
+function updateFactorProductPreview() {
+    const previewEls = document.querySelectorAll(".factor-product-preview-target, #factor-product-preview");
+    if (!previewEls || previewEls.length === 0) return;
+
+    const task = tasksList[currentTaskIndex];
+    const isPrimeFactor = task && (task.task_type === "prime_factorization" || currentRoomCode === "math-6-prime-factorization");
+    const input = document.getElementById("answer-input");
+    const val = input ? input.value.trim() : "";
+
+    if (!isPrimeFactor || !val) {
+        previewEls.forEach(el => {
+            el.classList.add("hidden");
+            el.innerHTML = "";
+        });
+        return;
+    }
+
+    const nums = val.split(/[\s,·*xX×]+/).map(s => parseInt(s, 10)).filter(n => !isNaN(n) && n > 0);
+    if (nums.length >= 1) {
+        let product = 1;
+        nums.forEach(n => { product *= n; });
+        const expression = nums.join(" · ");
+        previewEls.forEach(el => {
+            el.innerHTML = `<span class="opacity-80">Результат множення:</span> <strong class="font-mono text-indigo-950 font-black ml-1">${expression} = ${product}</strong>`;
+            el.classList.remove("hidden");
+        });
+    } else {
+        previewEls.forEach(el => {
+            el.classList.add("hidden");
+            el.innerHTML = "";
+        });
+    }
+}
+
 function renderPrimeFactorLadder() {
-    const container = document.getElementById("factorization-ladder-rows");
+    const container = document.getElementById("factorization-ladders-container");
+    const tabsContainer = document.getElementById("factorization-number-tabs");
+    const summaryEl = document.getElementById("factorization-summary");
     if (!container) return;
     container.innerHTML = "";
 
-    let cur = currentFactorizationState.originalNumber || 504;
-    const factors = currentFactorizationState.factors || [];
+    const numbers = currentFactorizationState.numbers || [504];
+    const activeIdx = currentFactorizationState.activeNumberIndex || 0;
+    const factorMap = currentFactorizationState.factorMap || {};
 
-    factors.forEach((f) => {
-        const row = document.createElement("div");
-        row.className = "flex items-center justify-between py-1 px-2";
-        row.innerHTML = `
-            <span class="text-slate-900 w-24 text-right pr-3 font-mono">${cur}</span>
-            <span class="text-slate-400 font-normal">|</span>
-            <span class="text-indigo-600 w-16 text-left pl-3 font-mono font-black">${f}</span>
-        `;
-        container.appendChild(row);
-        cur = Math.floor(cur / f);
+    // Render tabs if multiple numbers
+    if (tabsContainer) {
+        if (numbers.length > 1) {
+            tabsContainer.classList.remove("hidden");
+            tabsContainer.innerHTML = "";
+            numbers.forEach((num, idx) => {
+                const factors = factorMap[num] || [];
+                let cur = num;
+                factors.forEach(f => { cur = Math.floor(cur / f); });
+                const isDone = (cur === 1);
+                const isActive = (idx === activeIdx);
+
+                const tabBtn = document.createElement("button");
+                tabBtn.type = "button";
+                tabBtn.onclick = () => setActiveFactorizationNumber(idx);
+                tabBtn.className = `px-3.5 py-1.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center gap-1.5 ${
+                    isActive 
+                        ? 'bg-brand-600 text-white shadow-md ring-2 ring-brand-400 ring-offset-1' 
+                        : (isDone ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-slate-200 text-slate-700 hover:bg-slate-300')
+                }`;
+                tabBtn.innerHTML = `<span>Число ${num}</span> ${isDone ? '<i class="fa-solid fa-check text-xs"></i>' : ''}`;
+                tabsContainer.appendChild(tabBtn);
+            });
+        } else {
+            tabsContainer.classList.add("hidden");
+        }
+    }
+
+    // Render ladders
+    numbers.forEach((num, idx) => {
+        const factors = factorMap[num] || [];
+        const isActive = (idx === activeIdx);
+        let cur = num;
+
+        const card = document.createElement("div");
+        card.className = `bg-white rounded-2xl p-3 sm:p-4 border transition-all min-w-[140px] sm:min-w-[170px] max-w-xs font-mono font-bold text-base sm:text-lg flex-1 ${
+            isActive && numbers.length > 1
+                ? 'border-brand-500 ring-2 ring-brand-500/30 bg-brand-50/10 shadow-md' 
+                : 'border-slate-200 shadow-sm'
+        } ${numbers.length > 1 ? 'cursor-pointer' : ''}`;
+        
+        if (numbers.length > 1) {
+            card.onclick = (e) => {
+                if (!e.target.closest("button")) {
+                    setActiveFactorizationNumber(idx);
+                }
+            };
+        }
+
+        let headerHtml = "";
+        if (numbers.length > 1) {
+            headerHtml = `
+                <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 text-xs font-sans font-bold text-slate-500">
+                    <span>Число <strong class="text-slate-800">${num}</strong></span>
+                    ${isActive ? '<span class="text-brand-600 bg-brand-50 px-2 py-0.5 rounded-lg border border-brand-200">Активне</span>' : '<span class="text-slate-400">Обрати</span>'}
+                </div>
+            `;
+        }
+
+        let rowsHtml = "";
+        factors.forEach(f => {
+            rowsHtml += `
+                <div class="flex items-center justify-between py-1 px-1 sm:px-2">
+                    <span class="text-slate-900 w-16 sm:w-20 text-right pr-2 sm:pr-3 font-mono">${cur}</span>
+                    <span class="text-slate-300 font-normal">|</span>
+                    <span class="text-indigo-600 w-12 sm:w-16 text-left pl-2 sm:pl-3 font-mono font-black">${f}</span>
+                </div>
+            `;
+            cur = Math.floor(cur / f);
+        });
+
+        if (cur === 1) {
+            rowsHtml += `
+                <div class="flex items-center justify-between py-1 px-1 sm:px-2">
+                    <span class="text-emerald-600 font-black w-16 sm:w-20 text-right pr-2 sm:pr-3 font-mono">1</span>
+                    <span class="text-slate-300 font-normal">|</span>
+                    <span class="text-emerald-600 text-[11px] sm:text-xs w-12 sm:w-16 text-left pl-2 sm:pl-3 font-sans font-bold">Готово ✅</span>
+                </div>
+            `;
+        } else {
+            rowsHtml += `
+                <div class="flex items-center justify-between py-1 px-1 sm:px-2">
+                    <span class="text-slate-900 w-16 sm:w-20 text-right pr-2 sm:pr-3 font-mono">${cur}</span>
+                    <span class="text-slate-300 font-normal">|</span>
+                    <span class="text-slate-300 w-12 sm:w-16 text-left pl-2 sm:pl-3 font-mono">?</span>
+                </div>
+            `;
+        }
+
+        card.innerHTML = `${headerHtml}<div class="space-y-1 divide-y divide-slate-100">${rowsHtml}</div>`;
+        container.appendChild(card);
     });
 
-    const finalRow = document.createElement("div");
-    finalRow.className = "flex items-center justify-between py-1 px-2";
-    if (cur === 1) {
-        finalRow.innerHTML = `
-            <span class="text-emerald-600 font-black w-24 text-right pr-3 font-mono">1</span>
-            <span class="text-slate-400 font-normal">|</span>
-            <span class="text-emerald-600 text-xs w-16 text-left pl-3 font-sans font-bold">Готово ✅</span>
-        `;
-    } else {
-        finalRow.innerHTML = `
-            <span class="text-slate-900 w-24 text-right pr-3 font-mono">${cur}</span>
-            <span class="text-slate-400 font-normal">|</span>
-            <span class="text-slate-300 w-16 text-left pl-3 font-mono">?</span>
-        `;
-    }
-    container.appendChild(finalRow);
+    // Summary of factorized numbers
+    if (summaryEl) {
+        const completed = numbers.filter(n => {
+            const factors = factorMap[n] || [];
+            let cur = n;
+            factors.forEach(f => { cur = Math.floor(cur / f); });
+            return cur === 1;
+        });
 
-    const input = document.getElementById("answer-input");
-    if (input) {
-        input.value = factors.join(", ");
-        const task = tasksList[currentTaskIndex];
-        if (task && factors.length > 0) task.last_answer = input.value;
+        if (completed.length > 0 && numbers.length > 1) {
+            summaryEl.classList.remove("hidden");
+            summaryEl.innerHTML = completed.map(n => {
+                const facs = factorMap[n] || [];
+                return `<div>${n} = ${facs.join(" · ")}</div>`;
+            }).join("");
+        } else {
+            summaryEl.classList.add("hidden");
+            summaryEl.innerHTML = "";
+        }
     }
+
+    // Auto-update answer input only for single number factorization topic
+    const input = document.getElementById("answer-input");
+    if (input && numbers.length === 1) {
+        const singleFactors = factorMap[numbers[0]] || [];
+        input.value = singleFactors.join(", ");
+        const task = tasksList[currentTaskIndex];
+        if (task && singleFactors.length > 0) task.last_answer = input.value;
+    }
+    updateFactorProductPreview();
 }
 
 async function addPrimeFactor(prime) {
     const task = tasksList[currentTaskIndex];
     if (task && task.is_solved) return;
 
-    let cur = currentFactorizationState.originalNumber || 504;
-    (currentFactorizationState.factors || []).forEach(f => {
+    const numbers = currentFactorizationState.numbers || [504];
+    let activeIdx = currentFactorizationState.activeNumberIndex || 0;
+    let activeNum = numbers[activeIdx] || numbers[0];
+    let factors = currentFactorizationState.factorMap[activeNum] || [];
+
+    let cur = activeNum;
+    factors.forEach(f => {
         cur = Math.floor(cur / f);
     });
 
+    // If active number is already finished, try to find next unfinished number
     if (cur <= 1) {
-        return;
+        const nextUnfinishedIdx = numbers.findIndex((n, i) => {
+            const facs = currentFactorizationState.factorMap[n] || [];
+            let c = n;
+            facs.forEach(f => { c = Math.floor(c / f); });
+            return c > 1;
+        });
+        if (nextUnfinishedIdx !== -1) {
+            currentFactorizationState.activeNumberIndex = nextUnfinishedIdx;
+            activeIdx = nextUnfinishedIdx;
+            activeNum = numbers[activeIdx];
+            factors = currentFactorizationState.factorMap[activeNum] || [];
+            cur = activeNum;
+            factors.forEach(f => { cur = Math.floor(cur / f); });
+        } else {
+            return;
+        }
     }
 
     if (cur % prime !== 0) {
@@ -1213,15 +1422,34 @@ async function addPrimeFactor(prime) {
         return;
     }
 
-    currentFactorizationState.factors.push(prime);
-    renderPrimeFactorLadder();
+    factors.push(prime);
+    currentFactorizationState.factorMap[activeNum] = factors;
+
     const feedbackBox = document.getElementById("feedback-box");
     if (feedbackBox) feedbackBox.classList.add("hidden");
 
     let newCur = cur / prime;
     if (newCur === 1) {
-        showFeedback(true, "Усі прості множники внесено! Натисніть кнопку 'Відповісти' для збереження результату.", null);
+        // Number is finished!
+        const nextUnfinishedIdx = numbers.findIndex((n, i) => {
+            const facs = currentFactorizationState.factorMap[n] || [];
+            let c = n;
+            facs.forEach(f => { c = Math.floor(c / f); });
+            return c > 1;
+        });
+        if (nextUnfinishedIdx !== -1) {
+            currentFactorizationState.activeNumberIndex = nextUnfinishedIdx;
+            showFeedback(true, `Число ${activeNum} успішно розкладено! Перейдіть до розкладання числа ${numbers[nextUnfinishedIdx]}.`, null);
+        } else {
+            if (numbers.length > 1) {
+                showFeedback(true, `Усі числа успішно розкладено на прості множники! Запишіть у поле відповіді шуканий результат.`, null);
+            } else {
+                showFeedback(true, `Усі прості множники внесено! Натисніть кнопку 'Відповісти' для збереження результату.`, null);
+            }
+        }
     }
+
+    renderPrimeFactorLadder();
 }
 
 async function reportFactorError(task, prime, cur, errDetail, uiMessage) {
@@ -1264,10 +1492,25 @@ function undoPrimeFactor() {
     const task = tasksList[currentTaskIndex];
     if (task && task.is_solved) return;
 
-    if (currentFactorizationState.factors && currentFactorizationState.factors.length > 0) {
-        currentFactorizationState.factors.pop();
-        renderPrimeFactorLadder();
+    const numbers = currentFactorizationState.numbers || [504];
+    let activeIdx = currentFactorizationState.activeNumberIndex || 0;
+    let activeNum = numbers[activeIdx] || numbers[0];
+    let factors = currentFactorizationState.factorMap[activeNum] || [];
+
+    if (factors.length > 0) {
+        factors.pop();
+        currentFactorizationState.factorMap[activeNum] = factors;
+    } else if (activeIdx > 0) {
+        // Switch to previous number and pop its factor
+        currentFactorizationState.activeNumberIndex = activeIdx - 1;
+        activeNum = numbers[currentFactorizationState.activeNumberIndex];
+        factors = currentFactorizationState.factorMap[activeNum] || [];
+        if (factors.length > 0) {
+            factors.pop();
+            currentFactorizationState.factorMap[activeNum] = factors;
+        }
     }
+    renderPrimeFactorLadder();
 }
 
 // NUMBER LINE & COORDINATE PLANE WIDGET STATES
@@ -1820,12 +2063,14 @@ function keypadPress(val) {
     const input = document.getElementById("answer-input");
     input.value += val;
     input.focus();
+    updateFactorProductPreview();
 }
 
 function keypadBackspace() {
     const input = document.getElementById("answer-input");
     input.value = input.value.slice(0, -1);
     input.focus();
+    updateFactorProductPreview();
 }
 
 function toggleMinusSign() {
@@ -1837,6 +2082,7 @@ function toggleMinusSign() {
         input.value = "-" + val;
     }
     input.focus();
+    updateFactorProductPreview();
 }
 
 // PRESENCE & VISIBILITY TRACKING
