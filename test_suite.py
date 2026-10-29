@@ -1224,5 +1224,103 @@ class TestSchoolPlatform(unittest.TestCase):
         # 4 initial factor error attempts + 14 wrong attempts + 14 correct attempts = 32 attempts
         self.assertEqual(student_entry["total_attempts"], 32)
 
+    def test_20_grade_9_software_and_os(self):
+        """End-to-end test for Grade 9 Informatics: Software, Licensing, OS, Drivers, Installation, Accessibility (20 tasks)"""
+        # 1. Check hierarchy contains Grade 9 Informatics topic with 20 tasks
+        hierarchy = self.client.get("/api/hierarchy")
+        self.assertEqual(hierarchy.status_code, 200)
+        grade9 = next((g for g in hierarchy.json()["grades"] if g["slug"] == "grade-9"), None)
+        self.assertIsNotNone(grade9)
+        info_subj = next((s for s in grade9["subjects"] if s["slug"] == "informatics"), None)
+        self.assertIsNotNone(info_subj)
+        topic = next((t for t in info_subj["topics"] if t["room_code"] == "info-9-software-and-os"), None)
+        self.assertIsNotNone(topic)
+        self.assertEqual(topic["tasks_count"], 20)
+
+        # 2. Authenticate Grade 9 student
+        device_id = f"test-dev-9-software-{uuid.uuid4()}"
+        auth_resp = self.client.post("/api/auth/student-session", json={
+            "name": "Ярослав Шевченко",
+            "device_id": device_id,
+            "grade_level": 9,
+            "class_letter": "А"
+        })
+        self.assertEqual(auth_resp.status_code, 200)
+        user_id = auth_resp.json()["user_id"]
+
+        # 3. Fetch topic tasks
+        tasks_resp = self.client.get(f"/api/tasks/topic/info-9-software-and-os?user_id={user_id}")
+        self.assertEqual(tasks_resp.status_code, 200)
+        data = tasks_resp.json()
+        tasks = data["tasks"]
+        self.assertEqual(len(tasks), 20)
+
+        expected_answers = [
+            # 1-3: Software classification
+            "A",                # Task 1 (choice)
+            "A, B, C",          # Task 2 (multichoice)
+            "A",                # Task 3 (choice)
+            # 4-7: Licensing
+            "A",                # Task 4 (choice)
+            "A",                # Task 5 (choice)
+            "A, B, C, D",       # Task 6 (multichoice)
+            "A",                # Task 7 (choice)
+            # 8-11: OS & Compatibility
+            "A, B, C, D",       # Task 8 (multichoice)
+            "A",                # Task 9 (choice)
+            "A",                # Task 10 (choice)
+            "A",                # Task 11 (choice)
+            # 12-14: Utilities & Drivers
+            "A, B, C, D",       # Task 12 (multichoice)
+            "A",                # Task 13 (choice)
+            "A",                # Task 14 (choice)
+            # 15-17: Installation & Uninstallation
+            "A",                # Task 15 (choice)
+            "A",                # Task 16 (choice)
+            "A",                # Task 17 (choice)
+            # 18-20: Digital Accessibility
+            "A, B, C, D",       # Task 18 (multichoice)
+            "A",                # Task 19 (choice)
+            "A, B, C, D"        # Task 20 (multichoice)
+        ]
+
+        # 4. Solve each task, verifying wrong submissions are rejected and correct ones accepted
+        for i in range(20):
+            t = tasks[i]
+            correct_ans = expected_answers[i]
+
+            # Submit wrong answer
+            wrong_ans = "Z" if t["task_type"] == "choice" else "A, F"
+            wrong_sub = self.client.post("/api/tasks/submit", json={
+                "user_id": user_id,
+                "task_id": t["id"],
+                "submitted_answer": wrong_ans,
+                "room_code": "info-9-software-and-os"
+            })
+            self.assertFalse(wrong_sub.json()["is_correct"], f"Task {i+1} incorrectly accepted '{wrong_ans}'")
+
+            # Submit correct answer (permuting multichoice to test permutation robustness)
+            submission_ans = correct_ans
+            if t["task_type"] == "multichoice":
+                items = [x.strip() for x in correct_ans.split(",")]
+                submission_ans = ", ".join(reversed(items))
+
+            sub = self.client.post("/api/tasks/submit", json={
+                "user_id": user_id,
+                "task_id": t["id"],
+                "submitted_answer": submission_ans,
+                "room_code": "info-9-software-and-os"
+            })
+            self.assertTrue(sub.json()["is_correct"], f"Task {i+1} failed for correct answer '{submission_ans}': {sub.json()}")
+
+        # 5. Verify teacher dashboard monitoring
+        dash_resp = self.client.get("/api/teacher/rooms/info-9-software-and-os/dashboard")
+        self.assertEqual(dash_resp.status_code, 200)
+        dash_data = dash_resp.json()
+        student_entry = next((s for s in dash_data["students"] if s["user_id"] == user_id), None)
+        self.assertIsNotNone(student_entry)
+        self.assertEqual(student_entry["solved_count"], 20)
+        self.assertEqual(student_entry["total_attempts"], 40)
+
 if __name__ == "__main__":
     unittest.main()
