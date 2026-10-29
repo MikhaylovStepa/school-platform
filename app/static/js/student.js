@@ -1149,7 +1149,22 @@ function appendSign(sign) {
 
 function setupPrimeFactorizationState(task) {
     let numbers = [];
-    if (task.options) {
+
+    // 1. Check known specific task orders in math-6-gcd-lcm
+    if (currentRoomCode === "math-6-gcd-lcm" || (task.question && (task.question.includes("НСД") || task.question.includes("НСК")))) {
+        if (task.task_order === 11 || (task.question.includes("72") && task.question.includes("96"))) {
+            numbers = [72, 96];
+        } else if (task.task_order === 12 || (task.question.includes("36") && task.question.includes("54") && task.question.includes("72"))) {
+            numbers = [36, 54, 72];
+        } else if (task.task_order === 13 || (task.question.includes("28") && task.question.includes("42"))) {
+            numbers = [28, 42];
+        } else if (task.task_order === 14 || (task.question.includes("12") && task.question.includes("15") && task.question.includes("18"))) {
+            numbers = [12, 15, 18];
+        }
+    }
+
+    // 2. Parse from task.options if not already determined
+    if (numbers.length === 0 && task.options) {
         try {
             const opts = typeof task.options === "string" ? JSON.parse(task.options) : task.options;
             if (opts && typeof opts === "object") {
@@ -1163,12 +1178,17 @@ function setupPrimeFactorizationState(task) {
             }
         } catch (e) {}
     }
+
+    // 3. Fallback extraction from question text (extract all unique numbers in first line)
     if (!numbers || numbers.length === 0) {
-        const matches = (task.question || "").match(/\b(\d+)\b/g);
+        const firstLine = (task.question || "").split("\n")[0];
+        const matches = firstLine.match(/\b(\d+)\b/g);
         if (matches && matches.length > 0) {
-            numbers = matches.map(n => parseInt(n, 10)).filter(n => !isNaN(n) && n > 1);
+            const rawNums = matches.map(n => parseInt(n, 10)).filter(n => !isNaN(n) && n > 1);
+            numbers = [...new Set(rawNums)];
         }
     }
+
     if (!numbers || numbers.length === 0) {
         numbers = [504];
     }

@@ -1,4 +1,5 @@
 import re
+import json
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -150,14 +151,33 @@ def get_topic_tasks(room_code: str, user_id: Optional[int] = None, db: Session =
             "last_answer": "",
             "last_is_correct": False
         })
+        
+        task_type = t.task_type
+        options = t.options_json
+
+        # Ensure multi-number prime factorization tasks for GCD and LCM have proper options
+        if topic.slug == "math-6-gcd-lcm" or topic.room_code == "math-6-gcd-lcm":
+            if t.task_order == 11:
+                task_type = "prime_factorization"
+                options = json.dumps({"numbers": [72, 96]}, ensure_ascii=False)
+            elif t.task_order == 12:
+                task_type = "prime_factorization"
+                options = json.dumps({"numbers": [36, 54, 72]}, ensure_ascii=False)
+            elif t.task_order == 13:
+                task_type = "prime_factorization"
+                options = json.dumps({"numbers": [28, 42]}, ensure_ascii=False)
+            elif t.task_order == 14:
+                task_type = "prime_factorization"
+                options = json.dumps({"numbers": [12, 15, 18]}, ensure_ascii=False)
+
         result_tasks.append({
             "id": t.id,
             "task_order": t.task_order,
             "question": t.question,
-            "task_type": t.task_type,
+            "task_type": task_type,
             "hint": t.hint,
             "media_url": t.media_url,
-            "options": t.options_json,
+            "options": options,
             "attempts_count": user_state["attempts_count"],
             "is_solved": user_state["is_solved"],
             "last_answer": user_state["last_answer"],

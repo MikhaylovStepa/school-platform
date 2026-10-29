@@ -13,6 +13,31 @@ def ensure_schema_migrations(db: Session):
     except Exception:
         db.rollback()
 
+    try:
+        db.execute(text("""
+            UPDATE tasks 
+            SET task_type = 'prime_factorization', options_json = '{"numbers": [72, 96]}' 
+            WHERE task_order = 11 AND topic_id IN (SELECT id FROM topics WHERE slug = 'math-6-gcd-lcm');
+        """))
+        db.execute(text("""
+            UPDATE tasks 
+            SET task_type = 'prime_factorization', options_json = '{"numbers": [36, 54, 72]}' 
+            WHERE task_order = 12 AND topic_id IN (SELECT id FROM topics WHERE slug = 'math-6-gcd-lcm');
+        """))
+        db.execute(text("""
+            UPDATE tasks 
+            SET task_type = 'prime_factorization', options_json = '{"numbers": [28, 42]}' 
+            WHERE task_order = 13 AND topic_id IN (SELECT id FROM topics WHERE slug = 'math-6-gcd-lcm');
+        """))
+        db.execute(text("""
+            UPDATE tasks 
+            SET task_type = 'prime_factorization', options_json = '{"numbers": [12, 15, 18]}' 
+            WHERE task_order = 14 AND topic_id IN (SELECT id FROM topics WHERE slug = 'math-6-gcd-lcm');
+        """))
+        db.commit()
+    except Exception:
+        db.rollback()
+
 def upsert_topic_tasks(db: Session, topic_id: int, tasks_data: list):
     """
     Safely seeds or updates tasks for a topic without deleting tasks,
