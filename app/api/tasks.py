@@ -22,12 +22,29 @@ def normalize_general_answer(ans: str) -> str:
     s = s.replace("−", "-").replace("—", "-").replace("–", "-")
     trans = str.maketrans({"а": "a", "в": "b", "с": "c", "д": "d", "х": "x", "у": "y", "е": "e", "к": "k", "м": "m", "н": "n", "р": "p", "т": "t", "о": "o"})
     s = s.translate(trans)
+    # Convert mixed fraction "3 2/5" or "3_2/5" to standardized "3_2/5" before stripping other whitespace
+    s = re.sub(r'(\d+)\s+(\d+)\s*/\s*(\d+)', r'\1_\2/\3', s)
     s = s.replace(" ", "").replace("*", "").replace("·", "")
     s = re.sub(r'(\d+),(\d+)', r'\1.\2', s)
     # Only strip leading '+' if it is a signed number (e.g. '+5' -> '5'), but keep for sign sequences (e.g. '+-+', '+++')
     if s.startswith("+") and len(s) > 1 and (s[1].isdigit() or s[1] == '.'):
         s = s[1:]
     return s
+
+def parse_fraction_or_mixed(val: str):
+    # Match mixed number "3_2/5" or "3 2/5"
+    m_mixed = re.match(r'^(\d+)[_\s\+](\d+)/(\d+)$', val.strip())
+    if m_mixed:
+        w, n, d = int(m_mixed.group(1)), int(m_mixed.group(2)), int(m_mixed.group(3))
+        if d != 0:
+            return w + n / d
+    # Match simple fraction "2/5"
+    m_frac = re.match(r'^(\d+)/(\d+)$', val.strip())
+    if m_frac:
+        n, d = int(m_frac.group(1)), int(m_frac.group(2))
+        if d != 0:
+            return n / d
+    return None
 
 def check_answer_match(submitted: str, correct_spec: str) -> bool:
     norm_sub = normalize_general_answer(submitted)
@@ -38,6 +55,22 @@ def check_answer_match(submitted: str, correct_spec: str) -> bool:
         norm_opt = normalize_general_answer(opt)
         if norm_sub == norm_opt:
             return True
+
+    # 1b. Check fraction and mixed number mathematical equivalence
+    sub_frac = parse_fraction_or_mixed(norm_sub)
+    if sub_frac is not None:
+        for opt in options:
+            norm_opt = normalize_general_answer(opt)
+            opt_frac = parse_fraction_or_mixed(norm_opt)
+            if opt_frac is not None and abs(sub_frac - opt_frac) < 1e-7:
+                return True
+            try:
+                if not any(c.isalpha() for c in norm_opt) and not ("-" in norm_opt and not norm_opt.startswith("-")):
+                    val_opt = float(norm_opt)
+                    if abs(sub_frac - val_opt) < 1e-7:
+                        return True
+            except Exception:
+                pass
             
     # 2. Check multi-choice list match (e.g. "A, C" vs "C, A" vs "AC")
     sub_letters = sorted(re.findall(r'[a-z]', norm_sub))

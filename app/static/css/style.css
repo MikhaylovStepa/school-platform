@@ -70,3 +70,37 @@
     border-radius: 0 0.5rem 0.5rem 0;
     margin: 1rem 0;
 }
+
+/* Mathematical Fractions with horizontal bar */
+.inline-fraction {
+    display: inline-flex;
+    flex-direction: column;
+    vertical-align: middle;
+    text-align: center;
+    padding: 0 0.25rem;
+    font-size: 0.9em;
+    line-height: 1.1;
+}
+
+.inline-fraction .num {
+    border-bottom: 2px solid currentColor;
+    padding-bottom: 2px;
+    font-weight: 800;
+}
+
+.inline-fraction .denom {
+    padding-top: 2px;
+    font-weight: 800;
+}
+
+.mixed-fraction {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    vertical-align: middle;
+}
+
+.mixed-fraction .whole-part {
+    font-weight: 900;
+    font-size: 1.15em;
+}

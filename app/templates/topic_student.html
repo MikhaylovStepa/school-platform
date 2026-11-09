@@ -1205,6 +1205,56 @@
                     </div>
                 </div>
 
+                <!-- Mixed Fraction Dual Input (Whole part + Fractional part) -->
+                <div id="mixed-fraction-container" class="hidden space-y-2">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2 text-center">
+                        Введіть мішане число або дріб:
+                    </label>
+                    <div class="flex items-center justify-center gap-3 p-4 bg-slate-50/80 rounded-2xl border-2 border-slate-200">
+                        <!-- Whole Part Field -->
+                        <div class="flex flex-col items-center">
+                            <span class="text-[11px] font-bold text-slate-500 uppercase mb-1">Ціла частина</span>
+                            <input type="text" id="mixed-whole-input" readonly inputmode="none" placeholder="0"
+                                   onclick="selectMixedField('whole')"
+                                   class="w-20 sm:w-24 text-center text-2xl sm:text-3xl font-black py-2.5 px-2 rounded-xl border-2 border-brand-500 bg-brand-50/40 focus:ring-2 focus:ring-brand-500/20 outline-none transition cursor-pointer">
+                        </div>
+                        
+                        <div class="text-xl font-bold text-slate-400 self-end pb-4">+</div>
+
+                        <!-- Fraction Part Field -->
+                        <div class="flex flex-col items-center">
+                            <span class="text-[11px] font-bold text-slate-500 uppercase mb-1">Дробова частина (a/b)</span>
+                            <input type="text" id="mixed-fraction-input" readonly inputmode="none" placeholder="1/2"
+                                   onclick="selectMixedField('fraction')"
+                                   class="w-28 sm:w-36 text-center text-xl sm:text-2xl font-black py-2.5 px-2 rounded-xl border-2 border-slate-300 bg-white focus:ring-2 focus:ring-brand-500/20 outline-none transition cursor-pointer">
+                        </div>
+                    </div>
+                    <div id="mixed-fraction-preview" class="text-center text-sm font-bold text-brand-700 bg-brand-50/60 py-1.5 px-3 rounded-xl border border-brand-200">
+                        Ваша відповідь: <span class="text-slate-400 font-normal">порожньо</span>
+                    </div>
+                </div>
+
+                <!-- Fraction & Math Virtual Keypad (Always on-screen for fraction/decimal tasks, no mobile keyboard pop-up) -->
+                <div id="fraction-keypad-container" class="hidden grid grid-cols-4 gap-2 pt-2">
+                    <button type="button" onclick="fractionKeypadPress('1')" class="keypad-btn">1</button>
+                    <button type="button" onclick="fractionKeypadPress('2')" class="keypad-btn">2</button>
+                    <button type="button" onclick="fractionKeypadPress('3')" class="keypad-btn">3</button>
+                    <button type="button" onclick="fractionKeypadPress('/')" id="fraction-keypad-slash-btn" class="keypad-btn font-black text-brand-700 bg-brand-50 border-brand-200 text-2xl" title="Риска дробу">/</button>
+                    
+                    <button type="button" onclick="fractionKeypadPress('4')" class="keypad-btn">4</button>
+                    <button type="button" onclick="fractionKeypadPress('5')" class="keypad-btn">5</button>
+                    <button type="button" onclick="fractionKeypadPress('6')" class="keypad-btn">6</button>
+                    <button type="button" onclick="fractionKeypadBackspace()" class="keypad-btn text-amber-700 bg-amber-50" title="Стерти символ"><i class="fa-solid fa-delete-left"></i></button>
+
+                    <button type="button" onclick="fractionKeypadPress('7')" class="keypad-btn">7</button>
+                    <button type="button" onclick="fractionKeypadPress('8')" class="keypad-btn">8</button>
+                    <button type="button" onclick="fractionKeypadPress('9')" class="keypad-btn">9</button>
+                    <button type="button" onclick="fractionKeypadClear()" class="keypad-btn text-rose-700 bg-rose-50 font-bold" title="Очистити">C</button>
+                    
+                    <button type="button" onclick="fractionKeypadPress('0')" class="keypad-btn col-span-2">0</button>
+                    <button type="button" onclick="fractionKeypadPress(',')" id="fraction-keypad-comma-btn" class="keypad-btn col-span-2 font-bold text-slate-700 bg-slate-100" title="Кома для десяткових дробів">,</button>
+                </div>
+
                 <!-- Touch Friendly Math Keypad for Mobile -->
                 <div id="math-keypad-container" class="grid grid-cols-4 gap-2 pt-2 sm:hidden">
                     <button type="button" onclick="keypadPress('1')" class="keypad-btn">1</button>

@@ -1939,6 +1939,1073 @@ $$ax + b = 0 \\quad \\text{або} \\quad cx + d = 0$$
 
     upsert_topic_tasks(db, control_topic_2.id, control_2_tasks_data)
 
+    # =========================================================================
+    # 6th Grade Math: Fractions Topic 1 (Звичайні дроби. Самостійна робота номер 1)
+    # =========================================================================
+    theory_fractions_sr1 = """### 📖 Теоретичний матеріал: Звичайні дроби (Самостійна робота №1)
+
+#### 1. Число у від'ємному степені:
+Для будь-якого додатного числа $a$:
+$$a^{-1} = \\frac{1}{a}$$
+> **Приклади:**
+> - $5^{-1} = \\frac{1}{5}$
+> - $2^{-1} = \\frac{1}{2}$
+> - $7^{-1} = \\frac{1}{7}$
+
+---
+
+#### 2. Порівняння дробів з однаковими знаменниками:
+Із двох дробів з однаковими знаменниками **більший той дріб, чисельник якого більший**.
+> **Приклад:** $\\frac{5}{7} > \\frac{3}{7}$, бо $5 > 3$.
+
+---
+
+#### 3. Порівняння дробів з однаковими чисельниками:
+Із двох дробів з однаковими чисельниками **більший той дріб, знаменник якого менший** (бо ціле поділили на меншу кількість частин).
+> **Приклад:** $\\frac{3}{4} > \\frac{3}{8}$, бо $4 < 8$.
+
+---
+
+#### 4. Правильні та неправильні дроби:
+- **Правильний дріб:** чисельник строго менший за знаменник ($a < b$). Дріб менший за 1.  
+  *(Приклади: $\\frac{2}{3}, \\frac{4}{9}, \\frac{1}{6}$)*
+- **Неправильний дріб:** чисельник більший за знаменник або дорівнює йому ($a \\ge b$). Дріб $\\ge 1$.  
+  *(Приклади: $\\frac{7}{3}, \\frac{5}{5}, \\frac{12}{7}$)*
+"""
+
+    fractions_sr1_topic = db.query(Topic).filter_by(subject_id=subject.id, slug="math-6-fractions-sr1").first()
+    if not fractions_sr1_topic:
+        fractions_sr1_topic = Topic(
+            subject_id=subject.id,
+            name="Звичайні дроби. Самостійна робота номер 1",
+            slug="math-6-fractions-sr1",
+            room_code="math-6-fractions-sr1",
+            description="Самостійна робота №1: число у від'ємному степені у вигляді дробу, порівняння дробів з однаковими знаменниками та чисельниками, вибір правильних та неправильних дробів.",
+            theory_content=theory_fractions_sr1,
+            sort_order=24
+        )
+        db.add(fractions_sr1_topic)
+        db.commit()
+        db.refresh(fractions_sr1_topic)
+    else:
+        fractions_sr1_topic.room_code = "math-6-fractions-sr1"
+        fractions_sr1_topic.name = "Звичайні дроби. Самостійна робота номер 1"
+        fractions_sr1_topic.description = "Самостійна робота №1: число у від'ємному степені у вигляді дробу, порівняння дробів з однаковими знаменниками та чисельниками, вибір правильних та неправильних дробів."
+        fractions_sr1_topic.theory_content = theory_fractions_sr1
+        fractions_sr1_topic.sort_order = 24
+        db.commit()
+
+    fractions_sr1_tasks_data = [
+        # Tasks 1-5: Number to power -1 as fraction
+        {
+            "task_order": 1,
+            "question": "Запишіть число у вигляді звичайного дробу:\n5^{-1}",
+            "task_type": "fraction_input",
+            "correct_answer": "1/5|1 / 5|0.2",
+            "options_json": None,
+            "hint": "Число у степені -1 дорівнює дробу: a^{-1} = 1/a. Тобто 5^{-1} = 1/5."
+        },
+        {
+            "task_order": 2,
+            "question": "Запишіть число у вигляді звичайного дробу:\n2^{-1}",
+            "task_type": "fraction_input",
+            "correct_answer": "1/2|1 / 2|0.5",
+            "options_json": None,
+            "hint": "За правилом: a^{-1} = 1/a. Тобто 2^{-1} = 1/2."
+        },
+        {
+            "task_order": 3,
+            "question": "Запишіть число у вигляді звичайного дробу:\n7^{-1}",
+            "task_type": "fraction_input",
+            "correct_answer": "1/7|1 / 7",
+            "options_json": None,
+            "hint": "За правилом: a^{-1} = 1/a. Тобто 7^{-1} = 1/7."
+        },
+        {
+            "task_order": 4,
+            "question": "Запишіть число у вигляді звичайного дробу:\n9^{-1}",
+            "task_type": "fraction_input",
+            "correct_answer": "1/9|1 / 9",
+            "options_json": None,
+            "hint": "За правилом: a^{-1} = 1/a. Тобто 9^{-1} = 1/9."
+        },
+        {
+            "task_order": 5,
+            "question": "Запишіть число у вигляді звичайного дробу:\n4^{-1}",
+            "task_type": "fraction_input",
+            "correct_answer": "1/4|1 / 4|0.25",
+            "options_json": None,
+            "hint": "За правилом: a^{-1} = 1/a. Тобто 4^{-1} = 1/4."
+        },
+
+        # Tasks 6-10: Compare fractions with same denominator
+        {
+            "task_order": 6,
+            "question": "Порівняйте дроби:\n\\frac{3}{7} і \\frac{5}{7}",
+            "task_type": "choice",
+            "correct_answer": "A",
+            "options_json": json.dumps([
+                {"key": "A", "text": "<"},
+                {"key": "B", "text": ">"},
+                {"key": "C", "text": "="}
+            ], ensure_ascii=False),
+            "hint": "Із двох дробів з однаковими знаменниками більший той, чисельник якого більший. Оскільки 3 < 5, то 3/7 < 5/7."
+        },
+        {
+            "task_order": 7,
+            "question": "Порівняйте дроби:\n\\frac{8}{9} і \\frac{4}{9}",
+            "task_type": "choice",
+            "correct_answer": "B",
+            "options_json": json.dumps([
+                {"key": "A", "text": "<"},
+                {"key": "B", "text": ">"},
+                {"key": "C", "text": "="}
+            ], ensure_ascii=False),
+            "hint": "Знаменники однакові (9). Оскільки 8 > 4, то 8/9 > 4/9."
+        },
+        {
+            "task_order": 8,
+            "question": "Порівняйте дроби:\n\\frac{6}{11} і \\frac{6}{11}",
+            "task_type": "choice",
+            "correct_answer": "C",
+            "options_json": json.dumps([
+                {"key": "A", "text": "<"},
+                {"key": "B", "text": ">"},
+                {"key": "C", "text": "="}
+            ], ensure_ascii=False),
+            "hint": "Чисельники і знаменники однакові, отже дроби рівні (=)."
+        },
+        {
+            "task_order": 9,
+            "question": "Порівняйте дроби:\n\\frac{2}{15} і \\frac{7}{15}",
+            "task_type": "choice",
+            "correct_answer": "A",
+            "options_json": json.dumps([
+                {"key": "A", "text": "<"},
+                {"key": "B", "text": ">"},
+                {"key": "C", "text": "="}
+            ], ensure_ascii=False),
+            "hint": "Оскільки знаменники однакові, а 2 < 7, маємо 2/15 < 7/15."
+        },
+        {
+            "task_order": 10,
+            "question": "Порівняйте дроби:\n\\frac{12}{13} і \\frac{10}{13}",
+            "task_type": "choice",
+            "correct_answer": "B",
+            "options_json": json.dumps([
+                {"key": "A", "text": "<"},
+                {"key": "B", "text": ">"},
+                {"key": "C", "text": "="}
+            ], ensure_ascii=False),
+            "hint": "Оскільки знаменники однакові, а 12 > 10, маємо 12/13 > 10/13."
+        },
+
+        # Tasks 11-15: Compare fractions with same numerator
+        {
+            "task_order": 11,
+            "question": "Порівняйте дроби:\n\\frac{4}{9} і \\frac{4}{5}",
+            "task_type": "choice",
+            "correct_answer": "A",
+            "options_json": json.dumps([
+                {"key": "A", "text": "<"},
+                {"key": "B", "text": ">"},
+                {"key": "C", "text": "="}
+            ], ensure_ascii=False),
+            "hint": "Із двох дробів з однаковими чисельниками більший той, знаменник якого менший. Оскільки 9 > 5, то 4/9 < 4/5."
+        },
+        {
+            "task_order": 12,
+            "question": "Порівняйте дроби:\n\\frac{3}{4} і \\frac{3}{8}",
+            "task_type": "choice",
+            "correct_answer": "B",
+            "options_json": json.dumps([
+                {"key": "A", "text": "<"},
+                {"key": "B", "text": ">"},
+                {"key": "C", "text": "="}
+            ], ensure_ascii=False),
+            "hint": "Чисельники однакові (3). Менший знаменник (4 < 8) дає більший дріб, отже 3/4 > 3/8."
+        },
+        {
+            "task_order": 13,
+            "question": "Порівняйте дроби:\n\\frac{5}{12} і \\frac{5}{7}",
+            "task_type": "choice",
+            "correct_answer": "A",
+            "options_json": json.dumps([
+                {"key": "A", "text": "<"},
+                {"key": "B", "text": ">"},
+                {"key": "C", "text": "="}
+            ], ensure_ascii=False),
+            "hint": "Знаменник 12 більший за 7, тому 5/12 < 5/7."
+        },
+        {
+            "task_order": 14,
+            "question": "Порівняйте дроби:\n\\frac{7}{10} і \\frac{7}{10}",
+            "task_type": "choice",
+            "correct_answer": "C",
+            "options_json": json.dumps([
+                {"key": "A", "text": "<"},
+                {"key": "B", "text": ">"},
+                {"key": "C", "text": "="}
+            ], ensure_ascii=False),
+            "hint": "Дроби повністю збігаються, отже 7/10 = 7/10."
+        },
+        {
+            "task_order": 15,
+            "question": "Порівняйте дроби:\n\\frac{1}{3} і \\frac{1}{6}",
+            "task_type": "choice",
+            "correct_answer": "B",
+            "options_json": json.dumps([
+                {"key": "A", "text": "<"},
+                {"key": "B", "text": ">"},
+                {"key": "C", "text": "="}
+            ], ensure_ascii=False),
+            "hint": "Чисельники однакові (1). Оскільки 3 < 6, третина більша за одну шосту: 1/3 > 1/6."
+        },
+
+        # Tasks 16-20: Select all proper fractions (multichoice)
+        {
+            "task_order": 16,
+            "question": "Оберіть усі правильні дроби (у яких чисельник менший за знаменник):",
+            "task_type": "multichoice",
+            "correct_answer": "A, C, E",
+            "options_json": json.dumps([
+                {"key": "A", "text": "\\frac{3}{7}"},
+                {"key": "B", "text": "\\frac{8}{5}"},
+                {"key": "C", "text": "\\frac{4}{9}"},
+                {"key": "D", "text": "\\frac{11}{11}"},
+                {"key": "E", "text": "\\frac{1}{6}"}
+            ], ensure_ascii=False),
+            "hint": "Правильним називається дріб, у якого чисельник строго менший за знаменник (a < b). Тут це: 3/7, 4/9, 1/6."
+        },
+        {
+            "task_order": 17,
+            "question": "Оберіть усі правильні дроби:",
+            "task_type": "multichoice",
+            "correct_answer": "B, C, E",
+            "options_json": json.dumps([
+                {"key": "A", "text": "\\frac{9}{4}"},
+                {"key": "B", "text": "\\frac{2}{5}"},
+                {"key": "C", "text": "\\frac{7}{8}"},
+                {"key": "D", "text": "\\frac{15}{12}"},
+                {"key": "E", "text": "\\frac{5}{6}"}
+            ], ensure_ascii=False),
+            "hint": "Правильні дроби: 2/5 (2<5), 7/8 (7<8), 5/6 (5<6)."
+        },
+        {
+            "task_order": 18,
+            "question": "Оберіть усі правильні дроби:",
+            "task_type": "multichoice",
+            "correct_answer": "A, C, E",
+            "options_json": json.dumps([
+                {"key": "A", "text": "\\frac{1}{2}"},
+                {"key": "B", "text": "\\frac{6}{6}"},
+                {"key": "C", "text": "\\frac{3}{10}"},
+                {"key": "D", "text": "\\frac{14}{13}"},
+                {"key": "E", "text": "\\frac{5}{9}"}
+            ], ensure_ascii=False),
+            "hint": "Правильні дроби (чисельник < знаменник): 1/2, 3/10, 5/9. (Дріб 6/6 — неправильний, дорівнює 1)."
+        },
+        {
+            "task_order": 19,
+            "question": "Оберіть усі правильні дроби:",
+            "task_type": "multichoice",
+            "correct_answer": "B, C, E",
+            "options_json": json.dumps([
+                {"key": "A", "text": "\\frac{10}{3}"},
+                {"key": "B", "text": "\\frac{4}{7}"},
+                {"key": "C", "text": "\\frac{8}{15}"},
+                {"key": "D", "text": "\\frac{7}{7}"},
+                {"key": "E", "text": "\\frac{11}{12}"}
+            ], ensure_ascii=False),
+            "hint": "Правильні дроби: 4/7, 8/15, 11/12."
+        },
+        {
+            "task_order": 20,
+            "question": "Оберіть усі правильні дроби:",
+            "task_type": "multichoice",
+            "correct_answer": "A, B, E",
+            "options_json": json.dumps([
+                {"key": "A", "text": "\\frac{2}{3}"},
+                {"key": "B", "text": "\\frac{5}{8}"},
+                {"key": "C", "text": "\\frac{13}{13}"},
+                {"key": "D", "text": "\\frac{7}{4}"},
+                {"key": "E", "text": "\\frac{9}{10}"}
+            ], ensure_ascii=False),
+            "hint": "Правильні дроби: 2/3, 5/8, 9/10."
+        },
+
+        # Tasks 21-25: Select all improper fractions (multichoice)
+        {
+            "task_order": 21,
+            "question": "Оберіть усі неправильні дроби (у яких чисельник більший за знаменник або дорівнює йому):",
+            "task_type": "multichoice",
+            "correct_answer": "A, C, D",
+            "options_json": json.dumps([
+                {"key": "A", "text": "\\frac{7}{3}"},
+                {"key": "B", "text": "\\frac{2}{9}"},
+                {"key": "C", "text": "\\frac{5}{5}"},
+                {"key": "D", "text": "\\frac{12}{7}"},
+                {"key": "E", "text": "\\frac{3}{8}"}
+            ], ensure_ascii=False),
+            "hint": "Неправильним є дріб, де чисельник >= знаменнику. Тут це: 7/3 (7>3), 5/5 (5=5), 12/7 (12>7)."
+        },
+        {
+            "task_order": 22,
+            "question": "Оберіть усі неправильні дроби:",
+            "task_type": "multichoice",
+            "correct_answer": "B, C, E",
+            "options_json": json.dumps([
+                {"key": "A", "text": "\\frac{4}{5}"},
+                {"key": "B", "text": "\\frac{9}{4}"},
+                {"key": "C", "text": "\\frac{8}{8}"},
+                {"key": "D", "text": "\\frac{1}{6}"},
+                {"key": "E", "text": "\\frac{15}{11}"}
+            ], ensure_ascii=False),
+            "hint": "Неправильні дроби: 9/4 (9>4), 8/8 (8=8), 15/11 (15>11)."
+        },
+        {
+            "task_order": 23,
+            "question": "Оберіть усі неправильні дроби:",
+            "task_type": "multichoice",
+            "correct_answer": "A, C, D",
+            "options_json": json.dumps([
+                {"key": "A", "text": "\\frac{11}{2}"},
+                {"key": "B", "text": "\\frac{3}{14}"},
+                {"key": "C", "text": "\\frac{6}{6}"},
+                {"key": "D", "text": "\\frac{13}{9}"},
+                {"key": "E", "text": "\\frac{5}{7}"}
+            ], ensure_ascii=False),
+            "hint": "Неправильні дроби: 11/2, 6/6, 13/9."
+        },
+        {
+            "task_order": 24,
+            "question": "Оберіть усі неправильні дроби:",
+            "task_type": "multichoice",
+            "correct_answer": "B, C, D",
+            "options_json": json.dumps([
+                {"key": "A", "text": "\\frac{5}{9}"},
+                {"key": "B", "text": "\\frac{10}{7}"},
+                {"key": "C", "text": "\\frac{4}{4}"},
+                {"key": "D", "text": "\\frac{18}{13}"},
+                {"key": "E", "text": "\\frac{2}{11}"}
+            ], ensure_ascii=False),
+            "hint": "Неправильні дроби: 10/7, 4/4, 18/13."
+        },
+        {
+            "task_order": 25,
+            "question": "Оберіть усі неправильні дроби:",
+            "task_type": "multichoice",
+            "correct_answer": "A, B, D",
+            "options_json": json.dumps([
+                {"key": "A", "text": "\\frac{8}{3}"},
+                {"key": "B", "text": "\\frac{7}{7}"},
+                {"key": "C", "text": "\\frac{4}{9}"},
+                {"key": "D", "text": "\\frac{14}{5}"},
+                {"key": "E", "text": "\\frac{1}{8}"}
+            ], ensure_ascii=False),
+            "hint": "Неправильні дроби: 8/3, 7/7, 14/5."
+        }
+    ]
+    upsert_topic_tasks(db, fractions_sr1_topic.id, fractions_sr1_tasks_data)
+
+    # =========================================================================
+    # 6th Grade Math: Fractions Topic 2 (Звичайні дроби. Самостійна робота номер 2)
+    # =========================================================================
+    theory_fractions_sr2 = """### 📖 Теоретичний матеріал: Звичайні дроби (Самостійна робота №2)
+
+#### 1. Дроби, що дорівнюють цілим числам:
+Якщо чисельник ділиться на знаменник без остачі, такий дріб дорівнює цілому числу:
+- Дорівнюють **1**: $\\frac{5}{5} = 1, \\frac{8}{8} = 1, \\frac{12}{12} = 1$
+- Дорівнюють **2**: $\\frac{6}{3} = 2, \\frac{4}{2} = 2, \\frac{10}{5} = 2$
+- Дорівнюють **3**: $\\frac{9}{3} = 3, \\frac{15}{5} = 3, \\frac{12}{4} = 3$
+- Дорівнюють **4**: $\\frac{8}{2} = 4, \\frac{12}{3} = 4, \\frac{16}{4} = 4$
+
+---
+
+#### 2. Перетворення неправильного дробу у мішане число:
+Щоб виділити цілу частину з неправильного дробу $\\frac{a}{b}$:
+1. Поділити чисельник $a$ на знаменник $b$ з остачею.
+2. Неповна частка стає **цілою частиною**.
+3. Остача стає **чисельником** дробової частини.
+4. Знаменник залишається **без змін**.
+
+> **Приклад:** $\\frac{17}{5} = ?$  
+> $17 : 5 = 3$ (остача $2$) $\\implies \\mathbf{3\\frac{2}{5}}$ (записуємо: `3 2/5`).
+"""
+
+    fractions_sr2_topic = db.query(Topic).filter_by(subject_id=subject.id, slug="math-6-fractions-sr2").first()
+    if not fractions_sr2_topic:
+        fractions_sr2_topic = Topic(
+            subject_id=subject.id,
+            name="Звичайні дроби. Самостійна робота номер 2",
+            slug="math-6-fractions-sr2",
+            room_code="math-6-fractions-sr2",
+            description="Самостійна робота №2: вибір дробів, що дорівнюють 1, 2, 3 або 4, та перетворення неправильних дробів у мішані числа.",
+            theory_content=theory_fractions_sr2,
+            sort_order=25
+        )
+        db.add(fractions_sr2_topic)
+        db.commit()
+        db.refresh(fractions_sr2_topic)
+    else:
+        fractions_sr2_topic.room_code = "math-6-fractions-sr2"
+        fractions_sr2_topic.name = "Звичайні дроби. Самостійна робота номер 2"
+        fractions_sr2_topic.description = "Самостійна робота №2: вибір дробів, що дорівнюють 1, 2, 3 або 4, та перетворення неправильних дробів у мішані числа."
+        fractions_sr2_topic.theory_content = theory_fractions_sr2
+        fractions_sr2_topic.sort_order = 25
+        db.commit()
+
+    fractions_sr2_tasks_data = [
+        # Tasks 1-10: Fractions equal to 1, 2, 3, 4 (multichoice)
+        {
+            "task_order": 1,
+            "question": "Оберіть усі дроби, значення яких дорівнює 1:",
+            "task_type": "multichoice",
+            "correct_answer": "A, C, D",
+            "options_json": json.dumps([
+                {"key": "A", "text": "\\frac{5}{5}"},
+                {"key": "B", "text": "\\frac{3}{7}"},
+                {"key": "C", "text": "\\frac{8}{8}"},
+                {"key": "D", "text": "\\frac{12}{12}"},
+                {"key": "E", "text": "\\frac{4}{1}"}
+            ], ensure_ascii=False),
+            "hint": "Дріб дорівнює 1, якщо чисельник дорівнює знаменнику: 5/5 = 1, 8/8 = 1, 12/12 = 1. (4/1 = 4)."
+        },
+        {
+            "task_order": 2,
+            "question": "Оберіть усі дроби, значення яких дорівнює 1:",
+            "task_type": "multichoice",
+            "correct_answer": "B, C, D",
+            "options_json": json.dumps([
+                {"key": "A", "text": "\\frac{2}{3}"},
+                {"key": "B", "text": "\\frac{7}{7}"},
+                {"key": "C", "text": "\\frac{14}{14}"},
+                {"key": "D", "text": "\\frac{9}{9}"},
+                {"key": "E", "text": "\\frac{1}{5}"}
+            ], ensure_ascii=False),
+            "hint": "Дроби 7/7, 14/14, 9/9 дорівнюють 1."
+        },
+        {
+            "task_order": 3,
+            "question": "Оберіть усі дроби, значення яких дорівнює 2:",
+            "task_type": "multichoice",
+            "correct_answer": "A, B, D",
+            "options_json": json.dumps([
+                {"key": "A", "text": "\\frac{6}{3}"},
+                {"key": "B", "text": "\\frac{4}{2}"},
+                {"key": "C", "text": "\\frac{5}{2}"},
+                {"key": "D", "text": "\\frac{10}{5}"},
+                {"key": "E", "text": "\\frac{7}{3}"}
+            ], ensure_ascii=False),
+            "hint": "Ділимо чисельник на знаменник: 6:3 = 2, 4:2 = 2, 10:5 = 2."
+        },
+        {
+            "task_order": 4,
+            "question": "Оберіть усі дроби, значення яких дорівнює 2:",
+            "task_type": "multichoice",
+            "correct_answer": "A, C, D",
+            "options_json": json.dumps([
+                {"key": "A", "text": "\\frac{8}{4}"},
+                {"key": "B", "text": "\\frac{9}{4}"},
+                {"key": "C", "text": "\\frac{14}{7}"},
+                {"key": "D", "text": "\\frac{12}{6}"},
+                {"key": "E", "text": "\\frac{3}{2}"}
+            ], ensure_ascii=False),
+            "hint": "8/4 = 2, 14/7 = 2, 12/6 = 2."
+        },
+        {
+            "task_order": 5,
+            "question": "Оберіть усі дроби, значення яких дорівнює 3:",
+            "task_type": "multichoice",
+            "correct_answer": "A, B, D",
+            "options_json": json.dumps([
+                {"key": "A", "text": "\\frac{9}{3}"},
+                {"key": "B", "text": "\\frac{15}{5}"},
+                {"key": "C", "text": "\\frac{7}{2}"},
+                {"key": "D", "text": "\\frac{12}{4}"},
+                {"key": "E", "text": "\\frac{10}{3}"}
+            ], ensure_ascii=False),
+            "hint": "9:3 = 3, 15:5 = 3, 12:4 = 3."
+        },
+        {
+            "task_order": 6,
+            "question": "Оберіть усі дроби, значення яких дорівнює 3:",
+            "task_type": "multichoice",
+            "correct_answer": "A, C, D",
+            "options_json": json.dumps([
+                {"key": "A", "text": "\\frac{18}{6}"},
+                {"key": "B", "text": "\\frac{8}{3}"},
+                {"key": "C", "text": "\\frac{21}{7}"},
+                {"key": "D", "text": "\\frac{24}{8}"},
+                {"key": "E", "text": "\\frac{11}{4}"}
+            ], ensure_ascii=False),
+            "hint": "18/6 = 3, 21/7 = 3, 24/8 = 3."
+        },
+        {
+            "task_order": 7,
+            "question": "Оберіть усі дроби, значення яких дорівнює 4:",
+            "task_type": "multichoice",
+            "correct_answer": "A, B, C, E",
+            "options_json": json.dumps([
+                {"key": "A", "text": "\\frac{8}{2}"},
+                {"key": "B", "text": "\\frac{12}{3}"},
+                {"key": "C", "text": "\\frac{16}{4}"},
+                {"key": "D", "text": "\\frac{9}{2}"},
+                {"key": "E", "text": "\\frac{20}{5}"}
+            ], ensure_ascii=False),
+            "hint": "8/2 = 4, 12/3 = 4, 16/4 = 4, 20/5 = 4."
+        },
+        {
+            "task_order": 8,
+            "question": "Оберіть усі дроби, значення яких дорівнює 4:",
+            "task_type": "multichoice",
+            "correct_answer": "B, C, D",
+            "options_json": json.dumps([
+                {"key": "A", "text": "\\frac{15}{4}"},
+                {"key": "B", "text": "\\frac{24}{6}"},
+                {"key": "C", "text": "\\frac{28}{7}"},
+                {"key": "D", "text": "\\frac{32}{8}"},
+                {"key": "E", "text": "\\frac{10}{3}"}
+            ], ensure_ascii=False),
+            "hint": "24/6 = 4, 28/7 = 4, 32/8 = 4."
+        },
+        {
+            "task_order": 9,
+            "question": "Оберіть усі дроби, значення яких дорівнює 1:",
+            "task_type": "multichoice",
+            "correct_answer": "A, B, C, E",
+            "options_json": json.dumps([
+                {"key": "A", "text": "\\frac{4}{4}"},
+                {"key": "B", "text": "\\frac{6}{6}"},
+                {"key": "C", "text": "\\frac{10}{10}"},
+                {"key": "D", "text": "\\frac{8}{4}"},
+                {"key": "E", "text": "\\frac{15}{15}"}
+            ], ensure_ascii=False),
+            "hint": "4/4 = 1, 6/6 = 1, 10/10 = 1, 15/15 = 1."
+        },
+        {
+            "task_order": 10,
+            "question": "Оберіть усі дроби, значення яких дорівнює 2:",
+            "task_type": "multichoice",
+            "correct_answer": "A, B, C",
+            "options_json": json.dumps([
+                {"key": "A", "text": "\\frac{16}{8}"},
+                {"key": "B", "text": "\\frac{18}{9}"},
+                {"key": "C", "text": "\\frac{20}{10}"},
+                {"key": "D", "text": "\\frac{11}{5}"},
+                {"key": "E", "text": "\\frac{7}{4}"}
+            ], ensure_ascii=False),
+            "hint": "16/8 = 2, 18/9 = 2, 20/10 = 2."
+        },
+
+        # Tasks 11-20: Convert improper fraction to mixed number (dual input)
+        {
+            "task_order": 11,
+            "question": "Перетворіть неправильний дріб у мішане число:\n\\frac{17}{5}",
+            "task_type": "mixed_fraction",
+            "correct_answer": "3 2/5|3_2/5|17/5",
+            "options_json": None,
+            "hint": "Ділимо чисельник на знаменник: 17 : 5 = 3 (остача 2). Отримуємо 3 цілих і 2/5 (3 2/5)."
+        },
+        {
+            "task_order": 12,
+            "question": "Перетворіть неправильний дріб у мішане число:\n\\frac{11}{4}",
+            "task_type": "mixed_fraction",
+            "correct_answer": "2 3/4|2_3/4|11/4",
+            "options_json": None,
+            "hint": "11 : 4 = 2 (остача 3). Відповідь: 2 3/4."
+        },
+        {
+            "task_order": 13,
+            "question": "Перетворіть неправильний дріб у мішане число:\n\\frac{23}{7}",
+            "task_type": "mixed_fraction",
+            "correct_answer": "3 2/7|3_2/7|23/7",
+            "options_json": None,
+            "hint": "23 : 7 = 3 (остача 2). Відповідь: 3 2/7."
+        },
+        {
+            "task_order": 14,
+            "question": "Перетворіть неправильний дріб у мішане число:\n\\frac{19}{6}",
+            "task_type": "mixed_fraction",
+            "correct_answer": "3 1/6|3_1/6|19/6",
+            "options_json": None,
+            "hint": "19 : 6 = 3 (остача 1). Відповідь: 3 1/6."
+        },
+        {
+            "task_order": 15,
+            "question": "Перетворіть неправильний дріб у мішане число:\n\\frac{14}{3}",
+            "task_type": "mixed_fraction",
+            "correct_answer": "4 2/3|4_2/3|14/3",
+            "options_json": None,
+            "hint": "14 : 3 = 4 (остача 2). Відповідь: 4 2/3."
+        },
+        {
+            "task_order": 16,
+            "question": "Перетворіть неправильний дріб у мішане число:\n\\frac{29}{8}",
+            "task_type": "mixed_fraction",
+            "correct_answer": "3 5/8|3_5/8|29/8",
+            "options_json": None,
+            "hint": "29 : 8 = 3 (остача 5). Відповідь: 3 5/8."
+        },
+        {
+            "task_order": 17,
+            "question": "Перетворіть неправильний дріб у мішане число:\n\\frac{31}{9}",
+            "task_type": "mixed_fraction",
+            "correct_answer": "3 4/9|3_4/9|31/9",
+            "options_json": None,
+            "hint": "31 : 9 = 3 (остача 4). Відповідь: 3 4/9."
+        },
+        {
+            "task_order": 18,
+            "question": "Перетворіть неправильний дріб у мішане число:\n\\frac{13}{5}",
+            "task_type": "mixed_fraction",
+            "correct_answer": "2 3/5|2_3/5|13/5",
+            "options_json": None,
+            "hint": "13 : 5 = 2 (остача 3). Відповідь: 2 3/5."
+        },
+        {
+            "task_order": 19,
+            "question": "Перетворіть неправильний дріб у мішане число:\n\\frac{37}{10}",
+            "task_type": "mixed_fraction",
+            "correct_answer": "3 7/10|3_7/10|37/10",
+            "options_json": None,
+            "hint": "37 : 10 = 3 (остача 7). Відповідь: 3 7/10."
+        },
+        {
+            "task_order": 20,
+            "question": "Перетворіть неправильний дріб у мішане число:\n\\frac{25}{4}",
+            "task_type": "mixed_fraction",
+            "correct_answer": "6 1/4|6_1/4|25/4",
+            "options_json": None,
+            "hint": "25 : 4 = 6 (остача 1). Відповідь: 6 1/4."
+        }
+    ]
+    upsert_topic_tasks(db, fractions_sr2_topic.id, fractions_sr2_tasks_data)
+
+    # =========================================================================
+    # 6th Grade Math: Fractions Topic 3 (Звичайні дроби. Самостійна робота номер 3. Десяткові дроби)
+    # =========================================================================
+    theory_fractions_sr3 = """### 📖 Теоретичний матеріал: Звичайні та десяткові дроби
+
+#### 1. Перетворення звичайного дробу в десятковий:
+Дроби зі знаменниками $10, 100, 1000, 10000, \\dots$ записуються у вигляді десяткового дробу:
+- Знаменник $10 \\implies 1$ знак після коми: $\\frac{7}{10} = 0.7$
+- Знаменник $100 \\implies 2$ знаки після коми: $3\\frac{25}{100} = 3.25$, $5\\frac{7}{100} = 5.07$
+- Знаменник $1000 \\implies 3$ знаки після коми: $\\frac{19}{1000} = 0.019$, $\\frac{4}{1000} = 0.004$
+- Знаменник $10000 \\implies 4$ знаки після коми: $\\frac{9}{10000} = 0.0009$
+
+---
+
+#### 2. Перетворення десяткового дробу у звичайний / мішане число:
+Читаємо десятковий дріб і записуємо звичайним:
+- $0.7 =$ «сім десятих» $= \\frac{7}{10}$
+- $2.3 =$ «дві цілих три десятих» $= 2\\frac{3}{10}$ (записуємо: `2 3/10`)
+- $0.27 =$ «двадцять сім сотих» $= \\frac{27}{100}$
+- $1.09 =$ «одна ціла дев'ять сотих» $= 1\\frac{9}{100}$
+- $0.003 =$ «три тисячних» $= \\frac{3}{1000}$
+"""
+
+    fractions_sr3_topic = db.query(Topic).filter_by(subject_id=subject.id, slug="math-6-fractions-sr3").first()
+    if not fractions_sr3_topic:
+        fractions_sr3_topic = Topic(
+            subject_id=subject.id,
+            name="Звичайні дроби. Самостійна робота номер 3. Десяткові дроби",
+            slug="math-6-fractions-sr3",
+            room_code="math-6-fractions-sr3",
+            description="Самостійна робота №3: перетворення звичайних та мішаних дробів зі знаменниками 10, 100, 1000... у десяткові дроби та перетворення десяткових дробів у звичайні й мішані числа.",
+            theory_content=theory_fractions_sr3,
+            sort_order=26
+        )
+        db.add(fractions_sr3_topic)
+        db.commit()
+        db.refresh(fractions_sr3_topic)
+    else:
+        fractions_sr3_topic.room_code = "math-6-fractions-sr3"
+        fractions_sr3_topic.name = "Звичайні дроби. Самостійна робота номер 3. Десяткові дроби"
+        fractions_sr3_topic.description = "Самостійна робота №3: перетворення звичайних та мішаних дробів зі знаменниками 10, 100, 1000... у десяткові дроби та перетворення десяткових дробів у звичайні й мішані числа."
+        fractions_sr3_topic.theory_content = theory_fractions_sr3
+        fractions_sr3_topic.sort_order = 26
+        db.commit()
+
+    fractions_sr3_tasks_data = [
+        # Tasks 1-10: Convert fraction / mixed number with 10, 100, 1000, 1000000 to decimal
+        {
+            "task_order": 1,
+            "question": "Запишіть звичайний дріб у вигляді десяткового дробу:\n\\frac{7}{10}",
+            "task_type": "decimal_input",
+            "correct_answer": "0.7|0,7",
+            "options_json": None,
+            "hint": "7/10 записується як десятковий дріб: 0.7."
+        },
+        {
+            "task_order": 2,
+            "question": "Запишіть мішане число у вигляді десяткового дробу:\n3\\frac{25}{100}",
+            "task_type": "decimal_input",
+            "correct_answer": "3.25|3,25",
+            "options_json": None,
+            "hint": "3 цілих 25 сотих записується як 3.25."
+        },
+        {
+            "task_order": 3,
+            "question": "Запишіть звичайний дріб у вигляді десяткового дробу:\n\\frac{19}{1000}",
+            "task_type": "decimal_input",
+            "correct_answer": "0.019|0,019",
+            "options_json": None,
+            "hint": "19 тисячних має три знаки після коми: 0.019."
+        },
+        {
+            "task_order": 4,
+            "question": "Запишіть мішане число у вигляді десяткового дробу:\n1\\frac{3}{10}",
+            "task_type": "decimal_input",
+            "correct_answer": "1.3|1,3",
+            "options_json": None,
+            "hint": "1 ціла 3 десятих записується як 1.3."
+        },
+        {
+            "task_order": 5,
+            "question": "Запишіть звичайний дріб у вигляді десяткового дробу:\n\\frac{83}{100}",
+            "task_type": "decimal_input",
+            "correct_answer": "0.83|0,83",
+            "options_json": None,
+            "hint": "83 сотих записується як 0.83."
+        },
+        {
+            "task_order": 6,
+            "question": "Запишіть мішане число у вигляді десяткового дробу:\n5\\frac{7}{100}",
+            "task_type": "decimal_input",
+            "correct_answer": "5.07|5,07",
+            "options_json": None,
+            "hint": "5 цілих 7 сотих (два знаки після коми): 5.07."
+        },
+        {
+            "task_order": 7,
+            "question": "Запишіть звичайний дріб у вигляді десяткового дробу:\n\\frac{4}{1000}",
+            "task_type": "decimal_input",
+            "correct_answer": "0.004|0,004",
+            "options_json": None,
+            "hint": "4 тисячних (три знаки після коми): 0.004."
+        },
+        {
+            "task_order": 8,
+            "question": "Запишіть мішане число у вигляді десяткового дробу:\n12\\frac{345}{1000}",
+            "task_type": "decimal_input",
+            "correct_answer": "12.345|12,345",
+            "options_json": None,
+            "hint": "12 цілих 345 тисячних записується як 12.345."
+        },
+        {
+            "task_order": 9,
+            "question": "Запишіть звичайний дріб у вигляді десяткового дробу:\n\\frac{9}{10000}",
+            "task_type": "decimal_input",
+            "correct_answer": "0.0009|0,0009",
+            "options_json": None,
+            "hint": "9 десятитисячних (чотири знаки після коми): 0.0009."
+        },
+        {
+            "task_order": 10,
+            "question": "Запишіть мішане число у вигляді десяткового дробу:\n2\\frac{17}{1000000}",
+            "task_type": "decimal_input",
+            "correct_answer": "2.000017|2,000017",
+            "options_json": None,
+            "hint": "2 цілих 17 мільйонних (шість знаків після коми): 2.000017."
+        },
+
+        # Tasks 11-20: Convert decimal to fraction / mixed number (dual input)
+        {
+            "task_order": 11,
+            "question": "Запишіть десятковий дріб у вигляді звичайного дробу:\n0.7",
+            "task_type": "mixed_fraction",
+            "correct_answer": "7/10|0 7/10|0_7/10|7 / 10",
+            "options_json": None,
+            "hint": "0.7 читається як «сім десятих» і записується 7/10."
+        },
+        {
+            "task_order": 12,
+            "question": "Запишіть десятковий дріб у вигляді мішаного числа:\n2.3",
+            "task_type": "mixed_fraction",
+            "correct_answer": "2 3/10|2_3/10|23/10",
+            "options_json": None,
+            "hint": "2.3 — це 2 цілих 3 десятих, тобто 2 3/10."
+        },
+        {
+            "task_order": 13,
+            "question": "Запишіть десятковий дріб у вигляді звичайного дробу:\n0.27",
+            "task_type": "mixed_fraction",
+            "correct_answer": "27/100|0 27/100|0_27/100",
+            "options_json": None,
+            "hint": "0.27 — це 27 сотих (27/100)."
+        },
+        {
+            "task_order": 14,
+            "question": "Запишіть десятковий дріб у вигляді мішаного числа:\n1.09",
+            "task_type": "mixed_fraction",
+            "correct_answer": "1 9/100|1_9/100|109/100",
+            "options_json": None,
+            "hint": "1.09 — це 1 ціла 9 сотих (1 9/100)."
+        },
+        {
+            "task_order": 15,
+            "question": "Запишіть десятковий дріб у вигляді звичайного дробу:\n0.003",
+            "task_type": "mixed_fraction",
+            "correct_answer": "3/1000|0 3/1000|0_3/1000",
+            "options_json": None,
+            "hint": "0.003 — це 3 тисячних (3/1000)."
+        },
+        {
+            "task_order": 16,
+            "question": "Запишіть десятковий дріб у вигляді мішаного числа:\n4.17",
+            "task_type": "mixed_fraction",
+            "correct_answer": "4 17/100|4_17/100|417/100",
+            "options_json": None,
+            "hint": "4.17 — це 4 цілих 17 сотих (4 17/100)."
+        },
+        {
+            "task_order": 17,
+            "question": "Запишіть десятковий дріб у вигляді звичайного дробу:\n0.081",
+            "task_type": "mixed_fraction",
+            "correct_answer": "81/1000|0 81/1000|0_81/1000",
+            "options_json": None,
+            "hint": "0.081 — це 81 тисячна (81/1000)."
+        },
+        {
+            "task_order": 18,
+            "question": "Запишіть десятковий дріб у вигляді мішаного числа:\n5.007",
+            "task_type": "mixed_fraction",
+            "correct_answer": "5 7/1000|5_7/1000|5007/1000",
+            "options_json": None,
+            "hint": "5.007 — це 5 цілих 7 тисячних (5 7/1000)."
+        },
+        {
+            "task_order": 19,
+            "question": "Запишіть десятковий дріб у вигляді звичайного дробу:\n0.0009",
+            "task_type": "mixed_fraction",
+            "correct_answer": "9/10000|0 9/10000|0_9/10000",
+            "options_json": None,
+            "hint": "0.0009 — це 9 десятитисячних (9/10000)."
+        },
+        {
+            "task_order": 20,
+            "question": "Запишіть десятковий дріб у вигляді мішаного числа:\n7.1",
+            "task_type": "mixed_fraction",
+            "correct_answer": "7 1/10|7_1/10|71/10",
+            "options_json": None,
+            "hint": "7.1 — це 7 цілих 1 десята (7 1/10)."
+        }
+    ]
+    upsert_topic_tasks(db, fractions_sr3_topic.id, fractions_sr3_tasks_data)
+
+    # =========================================================================
+    # 6th Grade Math: Fractions Topic 4 (Звичайні дроби. Складання і віднімання)
+    # =========================================================================
+    theory_fractions_add_sub = """### 📖 Теоретичний матеріал: Складання і віднімання звичайних дробів
+
+#### 1. Додавання та віднімання дробів з однаковими знаменниками:
+Щоб додати (відняти) дроби з однаковими знаменниками:
+- Знаменник залишаємо без змін;
+- Чисельники додаємо (віднімаємо).
+
+$$\\frac{a}{c} + \\frac{b}{c} = \\frac{a + b}{c}, \\qquad \\frac{a}{c} - \\frac{b}{c} = \\frac{a - b}{c}$$
+
+> **Приклад 1:** $\\frac{2}{7} + \\frac{3}{7} = \\frac{2+3}{7} = \\frac{5}{7}$  
+> **Приклад 2:** $\\frac{8}{11} - \\frac{3}{11} = \\frac{8-3}{11} = \\frac{5}{11}$
+
+---
+
+#### 2. Додавання та віднімання мішаних чисел:
+- Окремо додаємо (віднімаємо) **цілі частини**;
+- Окремо додаємо (віднімаємо) **дробові частини**.
+
+> **Приклад 1:** $1\\frac{2}{9} + 2\\frac{5}{9} = (1 + 2) + \\left(\\frac{2}{9} + \\frac{5}{9}\\right) = 3\\frac{7}{9}$  
+> **Приклад 2:** $4\\frac{5}{8} - 2\\frac{2}{8} = (4 - 2) + \\left(\\frac{5}{8} - \\frac{2}{8}\\right) = 2\\frac{3}{8}$
+"""
+
+    fractions_add_sub_topic = db.query(Topic).filter_by(subject_id=subject.id, slug="math-6-fractions-add-sub").first()
+    if not fractions_add_sub_topic:
+        fractions_add_sub_topic = Topic(
+            subject_id=subject.id,
+            name="Звичайні дроби. Складання і віднімання",
+            slug="math-6-fractions-add-sub",
+            room_code="math-6-fractions-add-sub",
+            description="Складання та віднімання правильних та мішаних дробів з однаковими знаменниками. Результат завжди додатний.",
+            theory_content=theory_fractions_add_sub,
+            sort_order=27
+        )
+        db.add(fractions_add_sub_topic)
+        db.commit()
+        db.refresh(fractions_add_sub_topic)
+    else:
+        fractions_add_sub_topic.room_code = "math-6-fractions-add-sub"
+        fractions_add_sub_topic.name = "Звичайні дроби. Складання і віднімання"
+        fractions_add_sub_topic.description = "Складання та віднімання правильних та мішаних дробів з однаковими знаменниками. Результат завжди додатний."
+        fractions_add_sub_topic.theory_content = theory_fractions_add_sub
+        fractions_add_sub_topic.sort_order = 27
+        db.commit()
+
+    fractions_add_sub_tasks_data = [
+        # Tasks 1-20: Addition and subtraction of proper and mixed fractions
+        {
+            "task_order": 1,
+            "question": "Обчисліть: \\frac{2}{7} + \\frac{3}{7} = ?",
+            "task_type": "mixed_fraction",
+            "correct_answer": "5/7|0 5/7|0_5/7",
+            "options_json": None,
+            "hint": "Додаємо чисельники: (2 + 3)/7 = 5/7."
+        },
+        {
+            "task_order": 2,
+            "question": "Обчисліть: \\frac{8}{11} - \\frac{3}{11} = ?",
+            "task_type": "mixed_fraction",
+            "correct_answer": "5/11|0 5/11|0_5/11",
+            "options_json": None,
+            "hint": "Віднімаємо чисельники: (8 - 3)/11 = 5/11."
+        },
+        {
+            "task_order": 3,
+            "question": "Обчисліть: 1\\frac{2}{9} + 2\\frac{5}{9} = ?",
+            "task_type": "mixed_fraction",
+            "correct_answer": "3 7/9|3_7/9|34/9",
+            "options_json": None,
+            "hint": "Цілі частини: 1 + 2 = 3. Дробові частини: 2/9 + 5/9 = 7/9. Разом: 3 7/9."
+        },
+        {
+            "task_order": 4,
+            "question": "Обчисліть: 4\\frac{5}{8} - 2\\frac{2}{8} = ?",
+            "task_type": "mixed_fraction",
+            "correct_answer": "2 3/8|2_3/8|19/8",
+            "options_json": None,
+            "hint": "Цілі: 4 - 2 = 2. Дроби: 5/8 - 2/8 = 3/8. Разом: 2 3/8."
+        },
+        {
+            "task_order": 5,
+            "question": "Обчисліть: \\frac{4}{15} + \\frac{7}{15} = ?",
+            "task_type": "mixed_fraction",
+            "correct_answer": "11/15|0 11/15|0_11/15",
+            "options_json": None,
+            "hint": "(4 + 7)/15 = 11/15."
+        },
+        {
+            "task_order": 6,
+            "question": "Обчисліть: 3\\frac{4}{7} + 1\\frac{2}{7} = ?",
+            "task_type": "mixed_fraction",
+            "correct_answer": "4 6/7|4_6/7|34/7",
+            "options_json": None,
+            "hint": "Цілі: 3 + 1 = 4. Дроби: 4/7 + 2/7 = 6/7. Разом: 4 6/7."
+        },
+        {
+            "task_order": 7,
+            "question": "Обчисліть: 5\\frac{6}{13} - 3\\frac{2}{13} = ?",
+            "task_type": "mixed_fraction",
+            "correct_answer": "2 4/13|2_4/13|30/13",
+            "options_json": None,
+            "hint": "Цілі: 5 - 3 = 2. Дроби: 6/13 - 2/13 = 4/13. Разом: 2 4/13."
+        },
+        {
+            "task_order": 8,
+            "question": "Обчисліть: \\frac{1}{6} + \\frac{4}{6} = ?",
+            "task_type": "mixed_fraction",
+            "correct_answer": "5/6|0 5/6|0_5/6",
+            "options_json": None,
+            "hint": "(1 + 4)/6 = 5/6."
+        },
+        {
+            "task_order": 9,
+            "question": "Обчисліть: 2\\frac{3}{10} + 4\\frac{4}{10} = ?",
+            "task_type": "mixed_fraction",
+            "correct_answer": "6 7/10|6_7/10|67/10",
+            "options_json": None,
+            "hint": "Цілі: 2 + 4 = 6. Дроби: 3/10 + 4/10 = 7/10. Разом: 6 7/10."
+        },
+        {
+            "task_order": 10,
+            "question": "Обчисліть: 6\\frac{7}{9} - 4\\frac{5}{9} = ?",
+            "task_type": "mixed_fraction",
+            "correct_answer": "2 2/9|2_2/9|20/9",
+            "options_json": None,
+            "hint": "Цілі: 6 - 4 = 2. Дроби: 7/9 - 5/9 = 2/9. Разом: 2 2/9."
+        },
+        {
+            "task_order": 11,
+            "question": "Обчисліть: 1\\frac{3}{5} + \\frac{1}{5} = ?",
+            "task_type": "mixed_fraction",
+            "correct_answer": "1 4/5|1_4/5|9/5",
+            "options_json": None,
+            "hint": "Ціла частина: 1. Дроби: 3/5 + 1/5 = 4/5. Разом: 1 4/5."
+        },
+        {
+            "task_order": 12,
+            "question": "Обчисліть: 4\\frac{8}{17} - 1\\frac{3}{17} = ?",
+            "task_type": "mixed_fraction",
+            "correct_answer": "3 5/17|3_5/17|56/17",
+            "options_json": None,
+            "hint": "Цілі: 4 - 1 = 3. Дроби: 8/17 - 3/17 = 5/17. Разом: 3 5/17."
+        },
+        {
+            "task_order": 13,
+            "question": "Обчисліть: 2\\frac{1}{8} + 3\\frac{4}{8} = ?",
+            "task_type": "mixed_fraction",
+            "correct_answer": "5 5/8|5_5/8|45/8",
+            "options_json": None,
+            "hint": "Цілі: 2 + 3 = 5. Дроби: 1/8 + 4/8 = 5/8. Разом: 5 5/8."
+        },
+        {
+            "task_order": 14,
+            "question": "Обчисліть: 7\\frac{9}{14} - 2\\frac{4}{14} = ?",
+            "task_type": "mixed_fraction",
+            "correct_answer": "5 5/14|5_5/14|75/14",
+            "options_json": None,
+            "hint": "Цілі: 7 - 2 = 5. Дроби: 9/14 - 4/14 = 5/14. Разом: 5 5/14."
+        },
+        {
+            "task_order": 15,
+            "question": "Обчисліть: \\frac{5}{19} + \\frac{9}{19} = ?",
+            "task_type": "mixed_fraction",
+            "correct_answer": "14/19|0 14/19|0_14/19",
+            "options_json": None,
+            "hint": "(5 + 9)/19 = 14/19."
+        },
+        {
+            "task_order": 16,
+            "question": "Обчисліть: 3\\frac{11}{20} - 1\\frac{4}{20} = ?",
+            "task_type": "mixed_fraction",
+            "correct_answer": "2 7/20|2_7/20|47/20",
+            "options_json": None,
+            "hint": "Цілі: 3 - 1 = 2. Дроби: 11/20 - 4/20 = 7/20. Разом: 2 7/20."
+        },
+        {
+            "task_order": 17,
+            "question": "Обчисліть: 5\\frac{2}{11} + 2\\frac{7}{11} = ?",
+            "task_type": "mixed_fraction",
+            "correct_answer": "7 9/11|7_9/11|86/11",
+            "options_json": None,
+            "hint": "Цілі: 5 + 2 = 7. Дроби: 2/11 + 7/11 = 9/11. Разом: 7 9/11."
+        },
+        {
+            "task_order": 18,
+            "question": "Обчисліть: 8\\frac{15}{23} - 3\\frac{8}{23} = ?",
+            "task_type": "mixed_fraction",
+            "correct_answer": "5 7/23|5_7/23|122/23",
+            "options_json": None,
+            "hint": "Цілі: 8 - 3 = 5. Дроби: 15/23 - 8/23 = 7/23. Разом: 5 7/23."
+        },
+        {
+            "task_order": 19,
+            "question": "Обчисліть: 2\\frac{5}{16} + 1\\frac{2}{16} = ?",
+            "task_type": "mixed_fraction",
+            "correct_answer": "3 7/16|3_7/16|55/16",
+            "options_json": None,
+            "hint": "Цілі: 2 + 1 = 3. Дроби: 5/16 + 2/16 = 7/16. Разом: 3 7/16."
+        },
+        {
+            "task_order": 20,
+            "question": "Обчисліть: 9\\frac{10}{21} - 6\\frac{2}{21} = ?",
+            "task_type": "mixed_fraction",
+            "correct_answer": "3 8/21|3_8/21|71/21",
+            "options_json": None,
+            "hint": "Цілі: 9 - 6 = 3. Дроби: 10/21 - 2/21 = 8/21. Разом: 3 8/21."
+        }
+    ]
+    upsert_topic_tasks(db, fractions_add_sub_topic.id, fractions_add_sub_tasks_data)
+
     # ==========================================
     # 8th Grade: Informatics (Subject & Topics)
     # ==========================================

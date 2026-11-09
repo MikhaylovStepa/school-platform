@@ -38,7 +38,7 @@ class TestSchoolPlatform(unittest.TestCase):
         
         math = next((s for s in grade6["subjects"] if s["slug"] == "math"), None)
         self.assertIsNotNone(math)
-        self.assertEqual(len(math["topics"]), 23)
+        self.assertEqual(len(math["topics"]), 27)
 
         expected_room_codes = {
             "math-6-add", "math-6-add-2", "math-6-add-3",
@@ -50,7 +50,9 @@ class TestSchoolPlatform(unittest.TestCase):
             "math-6-coefficient", "math-6-brackets-signs",
             "math-6-combining-like-terms", "math-6-divisibility",
             "math-6-prime-factorization", "math-6-gcd-lcm",
-            "math-6-control-1", "math-6-control-2"
+            "math-6-control-1", "math-6-control-2",
+            "math-6-fractions-sr1", "math-6-fractions-sr2",
+            "math-6-fractions-sr3", "math-6-fractions-add-sub"
         }
         actual_room_codes = {t["room_code"] for t in math["topics"]}
         self.assertTrue(expected_room_codes.issubset(actual_room_codes))
@@ -64,6 +66,8 @@ class TestSchoolPlatform(unittest.TestCase):
                 self.assertEqual(topic["tasks_count"], 17)
             elif topic["room_code"] == "math-6-control-2":
                 self.assertEqual(topic["tasks_count"], 23)
+            elif topic["room_code"] == "math-6-fractions-sr1":
+                self.assertEqual(topic["tasks_count"], 25)
             else:
                 self.assertEqual(topic["tasks_count"], 20)
 
@@ -1321,6 +1325,118 @@ class TestSchoolPlatform(unittest.TestCase):
         self.assertIsNotNone(student_entry)
         self.assertEqual(student_entry["solved_count"], 20)
         self.assertEqual(student_entry["total_attempts"], 40)
+
+    def test_21_grade_6_fractions_cabinets_flow(self):
+        """End-to-end test for all 4 new Grade 6 Fractions cabinets (85 tasks total)"""
+        # 1. Authenticate Grade 6 student
+        device_id = f"test-dev-6-fractions-{uuid.uuid4()}"
+        auth_resp = self.client.post("/api/auth/student-session", json={
+            "name": "Оксана Бондар",
+            "device_id": device_id,
+            "grade_level": 6,
+            "class_letter": "А"
+        })
+        self.assertEqual(auth_resp.status_code, 200)
+        user_id = auth_resp.json()["user_id"]
+
+        # === Cabinet 1: math-6-fractions-sr1 (25 tasks) ===
+        resp1 = self.client.get(f"/api/tasks/topic/math-6-fractions-sr1?user_id={user_id}")
+        self.assertEqual(resp1.status_code, 200)
+        tasks1 = resp1.json()["tasks"]
+        self.assertEqual(len(tasks1), 25)
+
+        answers_sr1 = [
+            "1/5", "1/2", "1/7", "1/9", "1/4",   # 1-5 (negative power)
+            "A", "B", "C", "A", "B",             # 6-10 (compare same denom)
+            "A", "B", "A", "C", "B",             # 11-15 (compare same num)
+            "A, C, E", "B, C, E", "A, C, E", "B, C, E", "A, B, E", # 16-20 (proper fractions)
+            "A, C, D", "B, C, E", "A, C, D", "B, C, D", "A, B, D"  # 21-25 (improper fractions)
+        ]
+        for i, t in enumerate(tasks1):
+            sub = self.client.post("/api/tasks/submit", json={
+                "user_id": user_id,
+                "task_id": t["id"],
+                "submitted_answer": answers_sr1[i],
+                "room_code": "math-6-fractions-sr1"
+            })
+            self.assertTrue(sub.json()["is_correct"], f"Fractions SR1 Task {i+1} failed for {answers_sr1[i]}: {sub.json()}")
+
+        # === Cabinet 2: math-6-fractions-sr2 (20 tasks) ===
+        resp2 = self.client.get(f"/api/tasks/topic/math-6-fractions-sr2?user_id={user_id}")
+        self.assertEqual(resp2.status_code, 200)
+        tasks2 = resp2.json()["tasks"]
+        self.assertEqual(len(tasks2), 20)
+
+        answers_sr2 = [
+            "A, C, D", "B, C, D", "A, B, D", "A, C, D", "A, B, D", # 1-5 (=1, =2, =3)
+            "A, C, D", "A, B, C, E", "B, C, D", "A, B, C, E", "A, B, C", # 6-10 (=3, =4, =1, =2)
+            "3 2/5", "2 3/4", "3 2/7", "3 1/6", "4 2/3",          # 11-15 (mixed fractions)
+            "3 5/8", "3 4/9", "2 3/5", "3 7/10", "6 1/4"          # 16-20 (mixed fractions)
+        ]
+        for i, t in enumerate(tasks2):
+            sub = self.client.post("/api/tasks/submit", json={
+                "user_id": user_id,
+                "task_id": t["id"],
+                "submitted_answer": answers_sr2[i],
+                "room_code": "math-6-fractions-sr2"
+            })
+            self.assertTrue(sub.json()["is_correct"], f"Fractions SR2 Task {i+1} failed for {answers_sr2[i]}: {sub.json()}")
+
+        # === Cabinet 3: math-6-fractions-sr3 (20 tasks) ===
+        resp3 = self.client.get(f"/api/tasks/topic/math-6-fractions-sr3?user_id={user_id}")
+        self.assertEqual(resp3.status_code, 200)
+        tasks3 = resp3.json()["tasks"]
+        self.assertEqual(len(tasks3), 20)
+
+        answers_sr3 = [
+            "0.7", "3.25", "0.019", "1.3", "0.83",                 # 1-5 (decimal convert)
+            "5.07", "0.004", "12.345", "0.0009", "2.000017",      # 6-10 (decimal convert)
+            "7/10", "2 3/10", "27/100", "1 9/100", "3/1000",      # 11-15 (decimal to fraction/mixed)
+            "4 17/100", "81/1000", "5 7/1000", "9/10000", "7 1/10" # 16-20 (decimal to fraction/mixed)
+        ]
+        for i, t in enumerate(tasks3):
+            sub = self.client.post("/api/tasks/submit", json={
+                "user_id": user_id,
+                "task_id": t["id"],
+                "submitted_answer": answers_sr3[i],
+                "room_code": "math-6-fractions-sr3"
+            })
+            self.assertTrue(sub.json()["is_correct"], f"Fractions SR3 Task {i+1} failed for {answers_sr3[i]}: {sub.json()}")
+
+        # === Cabinet 4: math-6-fractions-add-sub (20 tasks) ===
+        resp4 = self.client.get(f"/api/tasks/topic/math-6-fractions-add-sub?user_id={user_id}")
+        self.assertEqual(resp4.status_code, 200)
+        tasks4 = resp4.json()["tasks"]
+        self.assertEqual(len(tasks4), 20)
+
+        answers_add_sub = [
+            "5/7", "5/11", "3 7/9", "2 3/8", "11/15",
+            "4 6/7", "2 4/13", "5/6", "6 7/10", "2 2/9",
+            "1 4/5", "3 5/17", "5 5/8", "5 5/14", "14/19",
+            "2 7/20", "7 9/11", "5 7/23", "3 7/16", "3 8/21"
+        ]
+        for i, t in enumerate(tasks4):
+            sub = self.client.post("/api/tasks/submit", json={
+                "user_id": user_id,
+                "task_id": t["id"],
+                "submitted_answer": answers_add_sub[i],
+                "room_code": "math-6-fractions-add-sub"
+            })
+            self.assertTrue(sub.json()["is_correct"], f"Fractions Add/Sub Task {i+1} failed for {answers_add_sub[i]}: {sub.json()}")
+
+        # Verify teacher dashboard for all 4 rooms
+        for r_code, count in [
+            ("math-6-fractions-sr1", 25),
+            ("math-6-fractions-sr2", 20),
+            ("math-6-fractions-sr3", 20),
+            ("math-6-fractions-add-sub", 20)
+        ]:
+            dash_resp = self.client.get(f"/api/teacher/rooms/{r_code}/dashboard")
+            self.assertEqual(dash_resp.status_code, 200)
+            dash_data = dash_resp.json()
+            student_entry = next((s for s in dash_data["students"] if s["user_id"] == user_id), None)
+            self.assertIsNotNone(student_entry)
+            self.assertEqual(student_entry["solved_count"], count)
 
 if __name__ == "__main__":
     unittest.main()

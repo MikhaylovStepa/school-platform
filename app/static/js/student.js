@@ -897,6 +897,147 @@ function selectTask(index) {
     sendHeartbeat();
 }
 
+function formatMathFractions(str) {
+    if (!str) return "";
+    let s = String(str);
+    // Replace negative power like 5^{-1}, 5^-1 or $5^{-1}$
+    s = s.replace(/\$?(\d+)\^\{?(-1)\}?\$?/g, '$1<sup>-1</sup>');
+    // Replace mixed fractions with LaTeX-like format: W \frac{a}{b}
+    s = s.replace(/(\d+)\s*\\frac\{([^\}]+)\}\{([^\}]+)\}/g, '<span class="mixed-fraction"><span class="whole-part">$1</span><span class="inline-fraction"><span class="num">$2</span><span class="denom">$3</span></span></span>');
+    // Replace simple LaTeX-like fractions: \frac{a}{b}
+    s = s.replace(/\\frac\{([^\}]+)\}\{([^\}]+)\}/g, '<span class="inline-fraction"><span class="num">$1</span><span class="denom">$2</span></span>');
+    // Replace plain mixed fraction e.g. "3 2/5" or "1 25/100" (preceded by start/space/operator and followed by end/space/operator)
+    s = s.replace(/(^|[\s\(\+\-\=\:\·\,\;])(\d+)\s+(\d+)\s*\/\s*(\d+)(?=[\s\)\+\-\=\:\·\,\;\?\.\!]|$)/g, '$1<span class="mixed-fraction"><span class="whole-part">$2</span><span class="inline-fraction"><span class="num">$3</span><span class="denom">$4</span></span></span>');
+    // Replace plain fraction e.g. "3/7" or "5/5"
+    s = s.replace(/(^|[\s\(\+\-\=\:\·\,\;])(\d+)\s*\/\s*(\d+)(?=[\s\)\+\-\=\:\·\,\;\?\.\!]|$)/g, '$1<span class="inline-fraction"><span class="num">$2</span><span class="denom">$3</span></span>');
+    return s;
+}
+
+let activeMixedField = "whole";
+
+function selectMixedField(field) {
+    activeMixedField = field;
+    const wholeInput = document.getElementById("mixed-whole-input");
+    const fracInput = document.getElementById("mixed-fraction-input");
+    if (!wholeInput || !fracInput) return;
+    
+    if (field === "whole") {
+        wholeInput.className = "w-20 sm:w-24 text-center text-2xl sm:text-3xl font-black py-2.5 px-2 rounded-xl border-2 border-brand-500 bg-brand-50/40 ring-4 ring-brand-500/20 outline-none transition cursor-pointer";
+        fracInput.className = "w-28 sm:w-36 text-center text-xl sm:text-2xl font-black py-2.5 px-2 rounded-xl border-2 border-slate-300 bg-white outline-none transition cursor-pointer";
+    } else {
+        fracInput.className = "w-28 sm:w-36 text-center text-xl sm:text-2xl font-black py-2.5 px-2 rounded-xl border-2 border-brand-500 bg-brand-50/40 ring-4 ring-brand-500/20 outline-none transition cursor-pointer";
+        wholeInput.className = "w-20 sm:w-24 text-center text-2xl sm:text-3xl font-black py-2.5 px-2 rounded-xl border-2 border-slate-300 bg-white outline-none transition cursor-pointer";
+    }
+}
+
+function updateMixedFractionSync() {
+    const wholeInput = document.getElementById("mixed-whole-input");
+    const fracInput = document.getElementById("mixed-fraction-input");
+    const answerInput = document.getElementById("answer-input");
+    const previewEl = document.getElementById("mixed-fraction-preview");
+    if (!wholeInput || !fracInput || !answerInput) return;
+
+    const w = wholeInput.value.trim();
+    const f = fracInput.value.trim();
+    let combined = "";
+
+    if (w && w !== "0" && f) {
+        combined = `${w} ${f}`;
+    } else if (f) {
+        combined = f;
+    } else if (w) {
+        combined = w;
+    }
+
+    answerInput.value = combined;
+    const task = tasksList[currentTaskIndex];
+    if (task) {
+        task.last_answer = combined;
+    }
+
+    if (previewEl) {
+        if (!combined) {
+            previewEl.innerHTML = `Ваша відповідь: <span class="text-slate-400 font-normal">порожньо</span>`;
+        } else {
+            previewEl.innerHTML = `Ваша відповідь: <strong class="text-brand-900">${formatMathFractions(combined)}</strong>`;
+        }
+    }
+}
+
+function fractionKeypadPress(val) {
+    const task = tasksList[currentTaskIndex];
+    if (task && task.is_solved) return;
+
+    const isMixedFraction = (task && (task.task_type === "mixed_fraction"));
+    if (isMixedFraction) {
+        const targetInput = activeMixedField === "whole" 
+            ? document.getElementById("mixed-whole-input") 
+            : document.getElementById("mixed-fraction-input");
+        if (!targetInput) return;
+        
+        // If in whole part and user presses '/', automatically switch to fraction part
+        if (activeMixedField === "whole" && val === "/") {
+            selectMixedField("fraction");
+            return;
+        }
+
+        // Avoid multiple slashes in fraction field
+        if (val === "/" && targetInput.value.includes("/")) return;
+        // Avoid comma in mixed fraction integer fields
+        if (val === ",") return;
+
+        targetInput.value += val;
+        updateMixedFractionSync();
+    } else {
+        const input = document.getElementById("answer-input");
+        if (!input) return;
+        if (val === "/" && input.value.includes("/")) return;
+        if (val === "," && (input.value.includes(",") || input.value.includes("."))) return;
+        input.value += val;
+        if (task) task.last_answer = input.value;
+    }
+}
+
+function fractionKeypadBackspace() {
+    const task = tasksList[currentTaskIndex];
+    if (task && task.is_solved) return;
+
+    const isMixedFraction = (task && (task.task_type === "mixed_fraction"));
+    if (isMixedFraction) {
+        const targetInput = activeMixedField === "whole" 
+            ? document.getElementById("mixed-whole-input") 
+            : document.getElementById("mixed-fraction-input");
+        if (!targetInput) return;
+        targetInput.value = targetInput.value.slice(0, -1);
+        updateMixedFractionSync();
+    } else {
+        const input = document.getElementById("answer-input");
+        if (!input) return;
+        input.value = input.value.slice(0, -1);
+        if (task) task.last_answer = input.value;
+    }
+}
+
+function fractionKeypadClear() {
+    const task = tasksList[currentTaskIndex];
+    if (task && task.is_solved) return;
+
+    const isMixedFraction = (task && (task.task_type === "mixed_fraction"));
+    if (isMixedFraction) {
+        const wholeInput = document.getElementById("mixed-whole-input");
+        const fracInput = document.getElementById("mixed-fraction-input");
+        if (wholeInput) wholeInput.value = "";
+        if (fracInput) fracInput.value = "";
+        selectMixedField("whole");
+        updateMixedFractionSync();
+    } else {
+        const input = document.getElementById("answer-input");
+        if (!input) return;
+        input.value = "";
+        if (task) task.last_answer = "";
+    }
+}
+
 function renderActiveTask() {
     const task = tasksList[currentTaskIndex];
     if (!task) return;
@@ -908,6 +1049,10 @@ function renderActiveTask() {
     const inputGroupContainer = document.getElementById("input-group-container");
     const signToggleBtn = document.getElementById("sign-toggle-btn");
     const mathKeypad = document.getElementById("math-keypad-container");
+    const fractionKeypad = document.getElementById("fraction-keypad-container");
+    const fractionKeypadCommaBtn = document.getElementById("fraction-keypad-comma-btn");
+    const fractionKeypadSlashBtn = document.getElementById("fraction-keypad-slash-btn");
+    const mixedFractionContainer = document.getElementById("mixed-fraction-container");
     const choiceContainer = document.getElementById("choice-options-container");
     const signSequenceContainer = document.getElementById("sign-sequence-container");
     const primeFactorContainer = document.getElementById("prime-factorization-container");
@@ -926,20 +1071,22 @@ function renderActiveTask() {
     if (numberLineContainer) numberLineContainer.classList.add("hidden");
     if (coordinatePlaneContainer) coordinatePlaneContainer.classList.add("hidden");
     if (choiceContainer) choiceContainer.classList.add("hidden");
+    if (mixedFractionContainer) mixedFractionContainer.classList.add("hidden");
+    if (fractionKeypad) fractionKeypad.classList.add("hidden");
     if (inputGroupContainer) inputGroupContainer.classList.remove("hidden");
     if (mathKeypad) mathKeypad.classList.add("hidden");
     if (signToggleBtn) signToggleBtn.classList.add("hidden");
     input.readOnly = false;
     input.removeAttribute("inputmode");
 
-    // Set prompt & question
+    // Set prompt & question with horizontal fraction support
     const isMathTask = task.question.startsWith("Обчисліть: ") || task.question.startsWith("Знайдіть ");
     if (isMathTask) {
         if (promptLabel) promptLabel.textContent = "Обчисліть вираз:";
-        questionTextEl.textContent = task.question.replace("Обчисліть: ", "").replace(" = ?", "");
+        questionTextEl.innerHTML = formatMathFractions(task.question.replace("Обчисліть: ", "").replace(" = ?", ""));
     } else {
         if (promptLabel) promptLabel.textContent = "Умова завдання:";
-        questionTextEl.textContent = task.question;
+        questionTextEl.innerHTML = formatMathFractions(task.question);
     }
 
     // Parse options if choice / multichoice task
@@ -960,6 +1107,9 @@ function renderActiveTask() {
     const isNumberLineRead = (task.task_type === "number_line_read");
     const isNumberLineMidpoint = (task.task_type === "number_line_midpoint");
     const isCoordinatePlaneRect = (task.task_type === "coordinate_plane_rect");
+    const isMixedFraction = (task.task_type === "mixed_fraction");
+    const isFractionInput = (task.task_type === "fraction_input") || (currentRoomCode === "math-6-fractions-sr1" && task.task_order >= 1 && task.task_order <= 5);
+    const isDecimalInput = (task.task_type === "decimal_input") || (currentRoomCode === "math-6-fractions-sr3" && task.task_order >= 1 && task.task_order <= 10);
 
     if (isChoice || isMultiChoice) {
         choiceContainer.classList.remove("hidden");
@@ -998,7 +1148,7 @@ function renderActiveTask() {
                     ${opt.key}
                 </div>
                 <div class="text-sm sm:text-base font-semibold leading-relaxed pt-0.5 flex-1">
-                    ${opt.text}
+                    ${formatMathFractions(opt.text)}
                 </div>
                 ${isSelected ? '<div class="text-brand-600 text-lg pt-0.5 shrink-0"><i class="fa-solid fa-circle-check"></i></div>' : ''}
             `;
@@ -1011,6 +1161,52 @@ function renderActiveTask() {
             multiHint.innerHTML = `💡 <em>Можна обрати декілька правильних відповідей. Обрано: <strong>${selectedKeys.length > 0 ? selectedKeys.join(", ") : "жодної"}</strong></em>`;
             choiceContainer.appendChild(multiHint);
         }
+    } else if (isMixedFraction) {
+        if (inputGroupContainer) inputGroupContainer.classList.add("hidden");
+        if (mixedFractionContainer) mixedFractionContainer.classList.remove("hidden");
+        if (fractionKeypad) fractionKeypad.classList.remove("hidden");
+        if (fractionKeypadCommaBtn) fractionKeypadCommaBtn.classList.add("hidden");
+        if (fractionKeypadSlashBtn) fractionKeypadSlashBtn.classList.remove("hidden");
+
+        const wholeInput = document.getElementById("mixed-whole-input");
+        const fracInput = document.getElementById("mixed-fraction-input");
+        const initialAns = (task.last_answer || input.value || "").trim();
+        
+        let initialWhole = "";
+        let initialFrac = "";
+        if (initialAns) {
+            const parts = initialAns.split(/\s+/);
+            if (parts.length === 2) {
+                initialWhole = parts[0];
+                initialFrac = parts[1];
+            } else if (parts.length === 1) {
+                if (parts[0].includes("/")) {
+                    initialFrac = parts[0];
+                } else {
+                    initialWhole = parts[0];
+                }
+            }
+        }
+        if (wholeInput) wholeInput.value = initialWhole;
+        if (fracInput) fracInput.value = initialFrac;
+        selectMixedField(initialWhole ? "fraction" : "whole");
+        updateMixedFractionSync();
+    } else if (isFractionInput) {
+        if (inputGroupContainer) inputGroupContainer.classList.remove("hidden");
+        if (fractionKeypad) fractionKeypad.classList.remove("hidden");
+        if (fractionKeypadCommaBtn) fractionKeypadCommaBtn.classList.add("hidden");
+        if (fractionKeypadSlashBtn) fractionKeypadSlashBtn.classList.remove("hidden");
+        input.placeholder = "напр. 1/5";
+        input.readOnly = true;
+        input.setAttribute("inputmode", "none");
+    } else if (isDecimalInput) {
+        if (inputGroupContainer) inputGroupContainer.classList.remove("hidden");
+        if (fractionKeypad) fractionKeypad.classList.remove("hidden");
+        if (fractionKeypadCommaBtn) fractionKeypadCommaBtn.classList.remove("hidden");
+        if (fractionKeypadSlashBtn) fractionKeypadSlashBtn.classList.add("hidden");
+        input.placeholder = "напр. 0.7 або 3.25";
+        input.readOnly = true;
+        input.setAttribute("inputmode", "none");
     } else if (isNumberLinePoint) {
         if (numberLineContainer) numberLineContainer.classList.remove("hidden");
         if (inputGroupContainer) inputGroupContainer.classList.remove("hidden");
