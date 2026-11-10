@@ -461,8 +461,9 @@ function configureTopicWorkspace() {
     const isTextFormatsLesson = currentRoomCode === "info-9-formats";
     const isArchiveOperationsLesson = currentRoomCode === "info-8-archive-operations" || currentRoomCode === "info-8-final-archives";
     const isDocumentLayoutLesson = currentRoomCode === "info-9-document-layout";
+    const isStylesLesson = currentRoomCode === "info-9-styles-and-structure";
     const isSlideDeckLesson = isTextFormatsLesson || isArchiveOperationsLesson || currentRoomCode === "info-8-compress";
-    const hasLab = isTextFormatsLesson || isArchiveOperationsLesson || isDocumentLayoutLesson;
+    const hasLab = isTextFormatsLesson || isArchiveOperationsLesson || isDocumentLayoutLesson || isStylesLesson;
 
     slidesData = isTextFormatsLesson ? slidesData9 : slidesData8;
     currentSlideIndex = 0;
@@ -471,6 +472,7 @@ function configureTopicWorkspace() {
     const lab8Archives = document.getElementById("lab-8-archives-content");
     const lab9 = document.getElementById("lab-9-content");
     const lab9Layout = document.getElementById("lab-9-layout-content");
+    const lab9Styles = document.getElementById("lab-9-styles-content");
     const labTitle = document.getElementById("tab-lab-title");
     const downloadBtn = document.getElementById("slide-pptx-download-btn");
     const tabBtnLab = document.getElementById("tab-btn-lab");
@@ -479,11 +481,12 @@ function configureTopicWorkspace() {
     if (tabBtnLab) tabBtnLab.classList.toggle("hidden", !hasLab);
     if (slideDeckViewer) slideDeckViewer.classList.toggle("hidden", !isSlideDeckLesson);
 
-    if (lab8) lab8.classList.toggle("hidden", isTextFormatsLesson || isArchiveOperationsLesson || isDocumentLayoutLesson || !hasLab);
+    if (lab8) lab8.classList.toggle("hidden", isTextFormatsLesson || isArchiveOperationsLesson || isDocumentLayoutLesson || isStylesLesson || !hasLab);
     if (lab8Archives) lab8Archives.classList.toggle("hidden", !isArchiveOperationsLesson);
     if (lab9) lab9.classList.toggle("hidden", !isTextFormatsLesson);
     if (lab9Layout) lab9Layout.classList.toggle("hidden", !isDocumentLayoutLesson);
-    if (labTitle) labTitle.textContent = (isTextFormatsLesson || isArchiveOperationsLesson || isDocumentLayoutLesson) ? "Практична робота" : "Практична лабораторія";
+    if (lab9Styles) lab9Styles.classList.toggle("hidden", !isStylesLesson);
+    if (labTitle) labTitle.textContent = (isTextFormatsLesson || isArchiveOperationsLesson || isDocumentLayoutLesson || isStylesLesson) ? "Практична робота" : "Практична лабораторія";
     if (downloadBtn) {
         downloadBtn.href = isTextFormatsLesson
             ? "/static/materials/9class/text_formats/Informatyka_9_Formaty_faіliv_Rezhymy_Google_Docs_v2.pptx"

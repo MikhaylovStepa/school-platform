@@ -1457,5 +1457,77 @@ class TestSchoolPlatform(unittest.TestCase):
             self.assertIsNotNone(student_entry)
             self.assertEqual(student_entry["solved_count"], count)
 
+    def test_22_informatics_9class_styles_and_structure_cabinet(self):
+        # 1. Verify Hierarchy API has Grade 9 -> Informatics -> Styles & Structure topic
+        hierarchy = self.client.get("/api/hierarchy")
+        self.assertEqual(hierarchy.status_code, 200)
+        grade9 = next((g for g in hierarchy.json()["grades"] if g["slug"] == "grade-9"), None)
+        self.assertIsNotNone(grade9)
+
+        informatics = next((s for s in grade9["subjects"] if s["slug"] == "informatics"), None)
+        self.assertIsNotNone(informatics)
+        topic = next((t for t in informatics["topics"] if t["room_code"] == "info-9-styles-and-structure"), None)
+        self.assertIsNotNone(topic)
+        self.assertEqual(topic["tasks_count"], 10)
+
+        # 2. Verify static materials are served correctly
+        for material in (
+            "/static/materials/9class/styles/Praktychna_robota_9_Stili_struktura_Ukrainska_poeziia.docx",
+            "/static/materials/9class/styles/Instruktsiia_uchnia_Word_2016_Stili.docx",
+            "/static/materials/9class/styles/Instruktsiia_uchnia_Chromebook_Google_Docs_Stili.docx",
+        ):
+            resp = self.client.get(material)
+            self.assertEqual(resp.status_code, 200, f"Failed to download material: {material}")
+            self.assertGreater(len(resp.content), 0)
+
+        # 3. Verify HTML Room page
+        room_page = self.client.get("/room/info-9-styles-and-structure")
+        self.assertEqual(room_page.status_code, 200)
+        html = room_page.text
+        self.assertIn("lab-9-styles-content", html)
+        self.assertIn("Praktychna_robota_9_", html)
+        self.assertIn("Instruktsiia_uchnia_Word_2016_Stili.docx", html)
+        self.assertIn("Instruktsiia_uchnia_Chromebook_Google_Docs_Stili.docx", html)
+
+        # 4. Verify JS handles topic room
+        student_js = Path("app/static/js/student.js").read_text(encoding="utf-8")
+        self.assertIn("info-9-styles-and-structure", student_js)
+        self.assertIn("lab9Styles", student_js)
+
+        # 5. Verify Student can fetch and answer tasks
+        device_id = f"test-dev-{uuid.uuid4()}"
+        auth_resp = self.client.post("/api/auth/student-session", json={
+            "name": "Учень 9 класу (Стилі)",
+            "device_id": device_id,
+            "grade_level": 9,
+            "class_letter": "Б"
+        })
+        self.assertEqual(auth_resp.status_code, 200)
+        user_id = auth_resp.json()["user_id"]
+
+        tasks_resp = self.client.get(f"/api/tasks/topic/info-9-styles-and-structure?user_id={user_id}")
+        self.assertEqual(tasks_resp.status_code, 200)
+        tasks = tasks_resp.json()["tasks"]
+        self.assertEqual(len(tasks), 10)
+
+        expected_answers = ["A", "A", "A", "B", "A", "A", "C", "A", "B", "A"]
+        for idx, task in enumerate(tasks):
+            sub_resp = self.client.post("/api/tasks/submit", json={
+                "user_id": user_id,
+                "task_id": task["id"],
+                "submitted_answer": expected_answers[idx],
+                "room_code": "info-9-styles-and-structure"
+            })
+            self.assertEqual(sub_resp.status_code, 200)
+            self.assertTrue(sub_resp.json()["is_correct"], f"Task {idx+1} failed with {expected_answers[idx]}")
+
+        # Verify teacher dashboard reflects completed tasks
+        dash_resp = self.client.get("/api/teacher/rooms/info-9-styles-and-structure/dashboard")
+        self.assertEqual(dash_resp.status_code, 200)
+        dash_data = dash_resp.json()
+        student_entry = next((s for s in dash_data["students"] if s["user_id"] == user_id), None)
+        self.assertIsNotNone(student_entry)
+        self.assertEqual(student_entry["solved_count"], 10)
+
 if __name__ == "__main__":
     unittest.main()
