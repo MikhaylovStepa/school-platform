@@ -1410,10 +1410,10 @@ class TestSchoolPlatform(unittest.TestCase):
         self.assertEqual(len(tasks4), 20)
 
         answers_add_sub = [
-            "5/7", "5/11", "3 7/9", "2 3/8", "11/15",
-            "4 6/7", "2 4/13", "5/6", "6 7/10", "2 2/9",
-            "1 4/5", "3 5/17", "5 5/8", "5 5/14", "14/19",
-            "2 7/20", "7 9/11", "5 7/23", "3 7/16", "3 8/21"
+            "5/7", "5/11", "1", "4/7", "1 4/8",
+            "2", "6 2/7", "2 4/7", "6", "2 5/8",
+            "6 3/9", "2 2/6", "8 2/11", "4 8/14", "4 4/15",
+            "4 12/20", "8 3/13", "5", "6 4/16", "4 13/21"
         ]
         for i, t in enumerate(tasks4):
             sub = self.client.post("/api/tasks/submit", json={
@@ -1423,6 +1423,25 @@ class TestSchoolPlatform(unittest.TestCase):
                 "room_code": "math-6-fractions-add-sub"
             })
             self.assertTrue(sub.json()["is_correct"], f"Fractions Add/Sub Task {i+1} failed for {answers_add_sub[i]}: {sub.json()}")
+
+        # Verify alternative equivalent mathematical formats (improper fraction / simplified fraction)
+        alt_test_task5 = tasks4[4] # 5/8 + 7/8 = 1 4/8 or 12/8 or 1 1/2
+        sub_alt5 = self.client.post("/api/tasks/submit", json={
+            "user_id": user_id,
+            "task_id": alt_test_task5["id"],
+            "submitted_answer": "12/8",
+            "room_code": "math-6-fractions-add-sub"
+        })
+        self.assertTrue(sub_alt5.json()["is_correct"])
+
+        alt_test_task8 = tasks4[7] # 4 2/7 - 1 5/7 = 2 4/7 or 18/7
+        sub_alt8 = self.client.post("/api/tasks/submit", json={
+            "user_id": user_id,
+            "task_id": alt_test_task8["id"],
+            "submitted_answer": "18/7",
+            "room_code": "math-6-fractions-add-sub"
+        })
+        self.assertTrue(sub_alt8.json()["is_correct"])
 
         # Verify teacher dashboard for all 4 rooms
         for r_code, count in [

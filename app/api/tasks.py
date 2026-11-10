@@ -32,18 +32,23 @@ def normalize_general_answer(ans: str) -> str:
     return s
 
 def parse_fraction_or_mixed(val: str):
+    val_str = val.strip()
     # Match mixed number "3_2/5" or "3 2/5"
-    m_mixed = re.match(r'^(\d+)[_\s\+](\d+)/(\d+)$', val.strip())
+    m_mixed = re.match(r'^(\d+)[_\s\+](\d+)/(\d+)$', val_str)
     if m_mixed:
         w, n, d = int(m_mixed.group(1)), int(m_mixed.group(2)), int(m_mixed.group(3))
         if d != 0:
             return w + n / d
     # Match simple fraction "2/5"
-    m_frac = re.match(r'^(\d+)/(\d+)$', val.strip())
+    m_frac = re.match(r'^(\d+)/(\d+)$', val_str)
     if m_frac:
         n, d = int(m_frac.group(1)), int(m_frac.group(2))
         if d != 0:
             return n / d
+    # Match non-negative integer "2"
+    m_int = re.match(r'^\d+$', val_str)
+    if m_int:
+        return float(val_str)
     return None
 
 def check_answer_match(submitted: str, correct_spec: str) -> bool:
