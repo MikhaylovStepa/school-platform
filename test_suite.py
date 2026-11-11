@@ -1529,5 +1529,97 @@ class TestSchoolPlatform(unittest.TestCase):
         self.assertIsNotNone(student_entry)
         self.assertEqual(student_entry["solved_count"], 10)
 
+    def test_23_informatics_8class_pc_hardware_cabinet(self):
+        # 1. Verify Hierarchy API has Grade 8 -> Informatics -> PC Hardware topic
+        hierarchy = self.client.get("/api/hierarchy")
+        self.assertEqual(hierarchy.status_code, 200)
+        grade8 = next((g for g in hierarchy.json()["grades"] if g["slug"] == "grade-8"), None)
+        self.assertIsNotNone(grade8)
+
+        informatics = next((s for s in grade8["subjects"] if s["slug"] == "informatics"), None)
+        self.assertIsNotNone(informatics)
+        topic = next((t for t in informatics["topics"] if t["room_code"] == "info-8-pc-hardware"), None)
+        self.assertIsNotNone(topic)
+        self.assertEqual(topic["tasks_count"], 20)
+        self.assertIn("Сучасний персональний комп’ютер", topic["name"])
+
+        # 2. Verify static materials (3 presentations) are served correctly
+        for material in (
+            "/static/materials/8class/proc/Informatyka_9_Suchasnyi_PK_Protsesor_Kharakterystyky_v2.pptx",
+            "/static/materials/8class/proc/Informatyka_8_Pamiat_kompiutera_Vnutrishnia_pamiat.pptx",
+            "/static/materials/8class/proc/Informatyka_8_Zovnishnia_pamiat.pptx",
+        ):
+            resp = self.client.get(material)
+            self.assertEqual(resp.status_code, 200, f"Failed to download material: {material}")
+            self.assertGreater(len(resp.content), 0)
+
+        # 3. Verify HTML Room page
+        room_page = self.client.get("/room/info-8-pc-hardware")
+        self.assertEqual(room_page.status_code, 200)
+        html = room_page.text
+        self.assertIn("slide-deck-viewer", html)
+
+        # 4. Verify JS handles topic room
+        student_js = Path("app/static/js/student.js").read_text(encoding="utf-8")
+        self.assertIn("info-8-pc-hardware", student_js)
+        self.assertIn("slidesData8Hardware", student_js)
+
+        # 5. Verify Student can fetch and answer all 20 tasks
+        device_id = f"test-dev-{uuid.uuid4()}"
+        auth_resp = self.client.post("/api/auth/student-session", json={
+            "name": "Учень 8 класу (ПК і процесор)",
+            "device_id": device_id,
+            "grade_level": 8,
+            "class_letter": "А"
+        })
+        self.assertEqual(auth_resp.status_code, 200)
+        user_id = auth_resp.json()["user_id"]
+
+        tasks_resp = self.client.get(f"/api/tasks/topic/info-8-pc-hardware?user_id={user_id}")
+        self.assertEqual(tasks_resp.status_code, 200)
+        tasks = tasks_resp.json()["tasks"]
+        self.assertEqual(len(tasks), 20)
+
+        expected_answers = [
+            "B",             # 1. Що таке ПК
+            "A, B, C, D",    # 2. Складові системного блоку
+            "B",             # 3. Материнська плата
+            "B",             # 4. Що таке CPU
+            "A, B, C",       # 5. Характеристики процесора
+            "B",             # 6. Тактова частота
+            "A",             # 7. Багатоядерність
+            "B",             # 8. 64-розрядність
+            "B",             # 9. Різниця RAM і накопичувачів
+            "A, B, C, D",    # 10. Види внутрішньої пам'яті
+            "A",             # 11. Втрата даних у RAM без живлення
+            "B",             # 12. Кеш-пам'ять
+            "B",             # 13. Регістри CPU
+            "B",             # 14. UEFI / BIOS
+            "A, B, C, D",    # 15. Зовнішня пам'ять
+            "A",             # 16. HDD
+            "A, B, C",       # 17. Переваги SSD
+            "B",             # 18. Ієрархія швидкості пам'яті
+            "A",             # 19. CD vs DVD vs Blu-ray
+            "A"              # 20. Ланцюжок руху даних
+        ]
+
+        for idx, task in enumerate(tasks):
+            sub_resp = self.client.post("/api/tasks/submit", json={
+                "user_id": user_id,
+                "task_id": task["id"],
+                "submitted_answer": expected_answers[idx],
+                "room_code": "info-8-pc-hardware"
+            })
+            self.assertEqual(sub_resp.status_code, 200)
+            self.assertTrue(sub_resp.json()["is_correct"], f"Task {idx+1} failed with {expected_answers[idx]}: {sub_resp.json()}")
+
+        # Verify teacher dashboard reflects completed tasks
+        dash_resp = self.client.get("/api/teacher/rooms/info-8-pc-hardware/dashboard")
+        self.assertEqual(dash_resp.status_code, 200)
+        dash_data = dash_resp.json()
+        student_entry = next((s for s in dash_data["students"] if s["user_id"] == user_id), None)
+        self.assertIsNotNone(student_entry)
+        self.assertEqual(student_entry["solved_count"], 20)
+
 if __name__ == "__main__":
     unittest.main()

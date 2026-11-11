@@ -348,6 +348,265 @@ const slidesData9 = [
     }
 ];
 
+const slidesData8Hardware = [
+    {
+        num: 1,
+        title: "Сучасний персональний комп’ютер",
+        content: `
+            <div class="text-center mb-4">
+                <div class="text-indigo-400 text-sm font-semibold uppercase tracking-wider mb-1">Інформатика • 8 клас</div>
+                <h3 class="text-2xl sm:text-3xl font-black text-white">Складові ПК, процесор та пристрої пам'яті</h3>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 my-4 text-xs">
+                <div class="bg-white/10 p-4 rounded-2xl border border-white/10 text-center">
+                    <div class="text-2xl mb-1">🖥️</div>
+                    <div class="font-bold text-sm text-indigo-300">Апаратна складова</div>
+                    <div class="text-slate-300 mt-1">CPU, RAM, Материнська плата, GPU, БЖ</div>
+                </div>
+                <div class="bg-white/10 p-4 rounded-2xl border border-white/10 text-center">
+                    <div class="text-2xl mb-1">⚡</div>
+                    <div class="font-bold text-sm text-emerald-300">Процесор (CPU)</div>
+                    <div class="text-slate-300 mt-1">Тактова частота, ядра, розрядність</div>
+                </div>
+                <div class="bg-white/10 p-4 rounded-2xl border border-white/10 text-center">
+                    <div class="text-2xl mb-1">💾</div>
+                    <div class="font-bold text-sm text-amber-300">Види пам'яті</div>
+                    <div class="text-slate-300 mt-1">Внутрішня (RAM/ROM) та зовнішня (SSD/HDD)</div>
+                </div>
+            </div>
+        `
+    },
+    {
+        num: 2,
+        title: "Що таке персональний комп’ютер?",
+        content: `
+            <p class="text-sm sm:text-base text-slate-200 mb-3 leading-relaxed">
+                <strong>Персональний комп’ютер (ПК)</strong> — це електронна машина універсального призначення, створена для зручної індивідуальної роботи одного користувача.
+            </p>
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-2.5 my-3 text-xs text-center">
+                <div class="p-3 bg-white/5 rounded-xl border border-white/10">
+                    <div class="text-lg mb-1">🖥️</div>
+                    <strong class="text-indigo-300 block">Десктоп</strong>
+                    <span class="text-slate-400">Настільний блок</span>
+                </div>
+                <div class="p-3 bg-white/5 rounded-xl border border-white/10">
+                    <div class="text-lg mb-1">💻</div>
+                    <strong class="text-emerald-300 block">Ноутбук</strong>
+                    <span class="text-slate-400">Мобільний ПК</span>
+                </div>
+                <div class="p-3 bg-white/5 rounded-xl border border-white/10">
+                    <div class="text-lg mb-1">🔲</div>
+                    <strong class="text-amber-300 block">Моноблок</strong>
+                    <span class="text-slate-400">ПК у моніторі</span>
+                </div>
+                <div class="p-3 bg-white/5 rounded-xl border border-white/10">
+                    <div class="text-lg mb-1">📦</div>
+                    <strong class="text-rose-300 block">Міні-ПК</strong>
+                    <span class="text-slate-400">Компактний неттоп</span>
+                </div>
+            </div>
+            <p class="text-xs text-slate-300 italic">Для роботи комп'ютера необхідна злагоджена взаємодія апаратного (Hardware) та програмного (Software) забезпечення.</p>
+        `
+    },
+    {
+        num: 3,
+        title: "Основні складові системного блоку",
+        content: `
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs my-2">
+                <div class="p-3 bg-indigo-950/50 rounded-xl border border-indigo-400/30">
+                    <strong class="text-indigo-300 block text-sm mb-1">⚙️ Центральний процесор (CPU)</strong>
+                    Виконує команди програм, здійснює обчислення та керує іншими пристроями.
+                </div>
+                <div class="p-3 bg-blue-950/50 rounded-xl border border-blue-400/30">
+                    <strong class="text-blue-300 block text-sm mb-1">🔌 Материнська плата</strong>
+                    Головна плата, що з'єднує всі складові між собою шинами даних і живлення.
+                </div>
+                <div class="p-3 bg-emerald-950/50 rounded-xl border border-emerald-400/30">
+                    <strong class="text-emerald-300 block text-sm mb-1">🧠 Оперативна пам’ять (RAM)</strong>
+                    Тимчасово утримує запущені програми й відкриті документи для швидкого доступу CPU.
+                </div>
+                <div class="p-3 bg-amber-950/50 rounded-xl border border-amber-400/30">
+                    <strong class="text-amber-300 block text-sm mb-1">💽 Накопичувач (SSD / HDD)</strong>
+                    Забезпечує довготривале зберігання файлів та операційної системи без живлення.
+                </div>
+            </div>
+        `
+    },
+    {
+        num: 4,
+        title: "Принцип роботи комп'ютера",
+        content: `
+            <p class="text-xs sm:text-sm text-slate-200 mb-3">Від введення початкових даних до отримання результату:</p>
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs text-center my-2">
+                <div class="p-3 bg-white/10 rounded-xl border border-white/10">
+                    <div class="font-bold text-indigo-300 mb-1">1. Введення</div>
+                    <span class="text-slate-300">Клавіатура, миша, мікрофон</span>
+                </div>
+                <div class="p-3 bg-white/10 rounded-xl border border-white/10">
+                    <div class="font-bold text-blue-300 mb-1">2. Пам'ять (RAM)</div>
+                    <span class="text-slate-300">Приймає дані відкритої програми</span>
+                </div>
+                <div class="p-3 bg-white/10 rounded-xl border border-white/10">
+                    <div class="font-bold text-emerald-300 mb-1">3. Процесор (CPU)</div>
+                    <span class="text-slate-300">Виконує обчислення та інструкції</span>
+                </div>
+                <div class="p-3 bg-white/10 rounded-xl border border-white/10">
+                    <div class="font-bold text-amber-300 mb-1">4. Виведення</div>
+                    <span class="text-slate-300">Монітор, динаміки, принтер</span>
+                </div>
+            </div>
+            <div class="p-3 bg-indigo-900/30 border border-indigo-400/30 rounded-xl text-center text-xs text-indigo-200 mt-3 font-mono">
+                Зовнішня пам'ять (SSD/HDD) ⟷ RAM ⟷ Кеш/Регістри ⟷ CPU
+            </div>
+        `
+    },
+    {
+        num: 5,
+        title: "Процесор (CPU) — «мозок» ПК",
+        content: `
+            <div class="p-4 bg-white/5 border border-white/10 rounded-2xl text-xs sm:text-sm text-slate-200 space-y-2 mb-3">
+                <p>• <strong>CPU (Central Processing Unit)</strong> — центральний процесор.</p>
+                <p>• Виконує машинні інструкції: арифметичні обчислення, логічні порівняння та керування потоком команд.</p>
+                <p>• Опрацьовує дані, завантажені в оперативну пам’ять, взаємодіючи з відеокартою та дисками.</p>
+                <p>• Сучасний кремнієвий мікропроцесор містить <strong>мільярди мікроскопічних транзисторів</strong> на кристалі площею в кілька квадратних сантиметрів.</p>
+            </div>
+        `
+    },
+    {
+        num: 6,
+        title: "Основні характеристики процесора",
+        content: `
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs my-2">
+                <div class="p-3.5 bg-indigo-950/60 rounded-xl border border-indigo-400/30">
+                    <strong class="text-indigo-300 block text-sm mb-1">⏱️ Тактова частота</strong>
+                    Кількість елементарних тактів за 1 секунду. Одиниця вимірювання — <strong>ГГц</strong> ($1\\text{ ГГц} = 10^9\\text{ тактів/с}$).<br>
+                    <span class="text-slate-400 text-[11px]">Приклад: 3.6 ГГц</span>
+                </div>
+                <div class="p-3.5 bg-emerald-950/60 rounded-xl border border-emerald-400/30">
+                    <strong class="text-emerald-300 block text-sm mb-1">🧩 Кількість ядер</strong>
+                    Кількість незалежних обчислювальних ядер для паралельної роботи.<br>
+                    <span class="text-slate-400 text-[11px]">Приклад: 4, 6, 8, 16 ядер</span>
+                </div>
+                <div class="p-3.5 bg-amber-950/60 rounded-xl border border-amber-400/30">
+                    <strong class="text-amber-300 block text-sm mb-1">🔢 Розрядність</strong>
+                    Розмір двійкового слова регістрів у бітах за 1 такт.<br>
+                    <span class="text-slate-400 text-[11px]">Сучасні CPU: 64 біти</span>
+                </div>
+            </div>
+        `
+    },
+    {
+        num: 7,
+        title: "Внутрішня пам'ять: RAM (Оперативна)",
+        content: `
+            <p class="text-xs sm:text-sm text-slate-200 leading-relaxed mb-3">
+                <strong>RAM (Random Access Memory)</strong> — пам'ять із довільним доступом для поточної роботи системи.
+            </p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs my-2">
+                <div class="p-3.5 bg-emerald-950/50 rounded-xl border border-emerald-400/30">
+                    <strong class="text-emerald-300 block text-sm mb-1">⚡ Висока швидкість</strong>
+                    Процесор звертається до RAM у тисячі разів швидше, ніж до жорсткого диска.
+                </div>
+                <div class="p-3.5 bg-rose-950/50 rounded-xl border border-rose-400/30">
+                    <strong class="text-rose-300 block text-sm mb-1">⚠️ Енергозалежність</strong>
+                    При вимкненні комп'ютера всі дані в RAM повністю зникають!
+                </div>
+            </div>
+            <p class="text-xs text-slate-300 mt-2"><strong>Важливе правило:</strong> Відкрити файл у програмі ≠ зберегти його. Незбережені зміни втрачаються без живлення.</p>
+        `
+    },
+    {
+        num: 8,
+        title: "Кеш-пам'ять та регістри процесора",
+        content: `
+            <div class="space-y-3 text-xs sm:text-sm text-slate-200">
+                <div class="p-3.5 bg-white/10 rounded-xl border border-white/10">
+                    <strong class="text-indigo-300 text-sm block mb-1">🚀 Кеш-пам'ять (Cache L1, L2, L3)</strong>
+                    Надшвидка буферна пам'ять безпосередньо в кристалі CPU. Зберігає копії найчастіше затребуваних даних і зменшує затримки звернення до повільнішої RAM.
+                </div>
+                <div class="p-3.5 bg-white/10 rounded-xl border border-white/10">
+                    <strong class="text-emerald-300 text-sm block mb-1">🎯 Регістри процесора</strong>
+                    Найшвидші комірки пам'яті всередині обчислювального ядра. Утримують числа, адреси та проміжні результати поточної операції (наприклад: $5 + 3 = 8$).
+                </div>
+            </div>
+        `
+    },
+    {
+        num: 9,
+        title: "Постійна пам'ять: UEFI / BIOS (ROM)",
+        content: `
+            <div class="p-4 bg-white/5 border border-white/10 rounded-2xl text-xs sm:text-sm text-slate-200 space-y-2 mb-3">
+                <p>• <strong>ROM / Flash UEFI/BIOS</strong> — мікросхема постійної енергонезалежної пам'яті на материнській платі.</p>
+                <p>• <strong>Призначення:</strong> містить мікропрограму первинного запуску ПК, перевірки обладнання (POST) та старту завантажувача ОС.</p>
+                <p>• <strong>Енергонезалежність:</strong> зберігає дані навіть при повному знеструмленні комп'ютера.</p>
+                <p>• У сучасних ПК прошивку можна безпечно оновлювати за допомогою спеціальних утиліт виробника.</p>
+            </div>
+        `
+    },
+    {
+        num: 10,
+        title: "Зовнішня пам'ять: HDD проти SSD",
+        content: `
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs my-2">
+                <div class="p-3.5 bg-blue-950/50 rounded-xl border border-blue-400/30">
+                    <strong class="text-blue-300 block text-sm mb-1">🧲 HDD (Жорсткий магнітний диск)</strong>
+                    • Обертові магнітні пластини + голівки.<br>
+                    • <strong>+</strong> Дешевий за 1 ТБ, велика місткість.<br>
+                    • <strong>−</strong> Повільний, шумить, боїться падінь і струсів.
+                </div>
+                <div class="p-3.5 bg-emerald-950/50 rounded-xl border border-emerald-400/30">
+                    <strong class="text-emerald-300 block text-sm mb-1">⚡ SSD (Твердотільний накопичувач)</strong>
+                    • Flash-мікросхеми без рухомих деталей.<br>
+                    • <strong>+</strong> Колосальна швидкість, безшумний, стійкий.<br>
+                    • <strong>−</strong> Вища вартість за 1 ГБ обсягу.
+                </div>
+            </div>
+            <p class="text-xs text-slate-300 text-center mt-2 font-semibold">ОС та програми встановлюють на SSD для максимальної швидкодії, а великі архіви зберігають на HDD.</p>
+        `
+    },
+    {
+        num: 11,
+        title: "Знімні носії та оптичні диски",
+        content: `
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs my-2">
+                <div class="p-3 bg-white/10 rounded-xl border border-white/10">
+                    <strong class="text-amber-300 block text-sm mb-1">🔌 Flash-носії (USB & SD)</strong>
+                    • <strong>USB-флешки:</strong> універсальне перенесення файлів.<br>
+                    • <strong>SD / microSD:</strong> карти для камер, смартфонів.<br>
+                    • Зручні, компактні та енергонезалежні.
+                </div>
+                <div class="p-3 bg-white/10 rounded-xl border border-white/10">
+                    <strong class="text-rose-300 block text-sm mb-1">💿 Оптичні диски (Laser)</strong>
+                    • <strong>CD:</strong> близько $700\\text{ МБ}$.<br>
+                    • <strong>DVD:</strong> $4.7\\text{ ГБ}$ (одношаровий).<br>
+                    • <strong>Blu-ray:</strong> $25\\text{ ГБ}$ (для відео високої якості).
+                </div>
+            </div>
+        `
+    },
+    {
+        num: 12,
+        title: "Ієрархія пам'яті комп'ютера",
+        content: `
+            <div class="space-y-2 text-xs my-2">
+                <div class="p-2.5 bg-emerald-900/60 rounded-xl border border-emerald-400/40 text-center font-bold text-emerald-200">
+                    ⚡ 1. Регістри CPU (Найшвидші, обсяг у байтах, усередині ядра)
+                </div>
+                <div class="p-2.5 bg-teal-900/50 rounded-xl border border-teal-400/30 text-center font-bold text-teal-200">
+                    🚀 2. Кеш-пам'ять L1, L2, L3 (Надшвидка, мегабайти)
+                </div>
+                <div class="p-2.5 bg-blue-900/50 rounded-xl border border-blue-400/30 text-center font-bold text-blue-200">
+                    🧠 3. Оперативна пам'ять RAM (Швидка, 8–64 ГБ, енергозалежна)
+                </div>
+                <div class="p-2.5 bg-indigo-900/50 rounded-xl border border-indigo-400/30 text-center font-bold text-indigo-200">
+                    💽 4. Зовнішні накопичувачі SSD / HDD (Місткі, до десятків ТБ, енергонезалежні)
+                </div>
+            </div>
+            <p class="text-xs text-slate-300 text-center mt-2 italic">Чим ближче пам'ять до обчислювального ядра процесора — тим вона швидша і дорожча.</p>
+        `
+    }
+];
+
 let slidesData = slidesData8;
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -462,10 +721,17 @@ function configureTopicWorkspace() {
     const isArchiveOperationsLesson = currentRoomCode === "info-8-archive-operations" || currentRoomCode === "info-8-final-archives";
     const isDocumentLayoutLesson = currentRoomCode === "info-9-document-layout";
     const isStylesLesson = currentRoomCode === "info-9-styles-and-structure";
-    const isSlideDeckLesson = isTextFormatsLesson || isArchiveOperationsLesson || currentRoomCode === "info-8-compress";
+    const isHardwareLesson = currentRoomCode === "info-8-pc-hardware";
+    const isSlideDeckLesson = isTextFormatsLesson || isArchiveOperationsLesson || currentRoomCode === "info-8-compress" || isHardwareLesson;
     const hasLab = isTextFormatsLesson || isArchiveOperationsLesson || isDocumentLayoutLesson || isStylesLesson;
 
-    slidesData = isTextFormatsLesson ? slidesData9 : slidesData8;
+    if (isHardwareLesson) {
+        slidesData = slidesData8Hardware;
+    } else if (isTextFormatsLesson) {
+        slidesData = slidesData9;
+    } else {
+        slidesData = slidesData8;
+    }
     currentSlideIndex = 0;
 
     const lab8 = document.getElementById("lab-8-content");
@@ -488,9 +754,13 @@ function configureTopicWorkspace() {
     if (lab9Styles) lab9Styles.classList.toggle("hidden", !isStylesLesson);
     if (labTitle) labTitle.textContent = (isTextFormatsLesson || isArchiveOperationsLesson || isDocumentLayoutLesson || isStylesLesson) ? "Практична робота" : "Практична лабораторія";
     if (downloadBtn) {
-        downloadBtn.href = isTextFormatsLesson
-            ? "/static/materials/9class/text_formats/Informatyka_9_Formaty_faіliv_Rezhymy_Google_Docs_v2.pptx"
-            : "/static/materials/8class/compress_archive01/Informatyka_8_Stysnennia_danykh_i_arkhivuvannia.pptx";
+        if (isHardwareLesson) {
+            downloadBtn.href = "/static/materials/8class/proc/Informatyka_9_Suchasnyi_PK_Protsesor_Kharakterystyky_v2.pptx";
+        } else if (isTextFormatsLesson) {
+            downloadBtn.href = "/static/materials/9class/text_formats/Informatyka_9_Formaty_faіliv_Rezhymy_Google_Docs_v2.pptx";
+        } else {
+            downloadBtn.href = "/static/materials/8class/compress_archive01/Informatyka_8_Stysnennia_danykh_i_arkhivuvannia.pptx";
+        }
     }
     if (isTextFormatsLesson) restoreFormatsSizes();
     if (isArchiveOperationsLesson) restoreArchiveSizes();
