@@ -1533,6 +1533,9 @@ function renderActiveTask() {
             } else {
                 input.placeholder = "-10";
             }
+        } else if (currentRoomCode === "math-6-fractions-prop") {
+            if (mathKeypad) mathKeypad.classList.remove("hidden");
+            input.placeholder = "Введіть невідоме число замість «?» (напр. 12)";
         } else if (isMathTask) {
             if (mathKeypad) mathKeypad.classList.remove("hidden");
             if (signToggleBtn) signToggleBtn.classList.remove("hidden");

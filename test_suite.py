@@ -38,7 +38,7 @@ class TestSchoolPlatform(unittest.TestCase):
         
         math = next((s for s in grade6["subjects"] if s["slug"] == "math"), None)
         self.assertIsNotNone(math)
-        self.assertEqual(len(math["topics"]), 27)
+        self.assertEqual(len(math["topics"]), 28)
 
         expected_room_codes = {
             "math-6-add", "math-6-add-2", "math-6-add-3",
@@ -52,7 +52,8 @@ class TestSchoolPlatform(unittest.TestCase):
             "math-6-prime-factorization", "math-6-gcd-lcm",
             "math-6-control-1", "math-6-control-2",
             "math-6-fractions-sr1", "math-6-fractions-sr2",
-            "math-6-fractions-sr3", "math-6-fractions-add-sub"
+            "math-6-fractions-sr3", "math-6-fractions-add-sub",
+            "math-6-fractions-prop"
         }
         actual_room_codes = {t["room_code"] for t in math["topics"]}
         self.assertTrue(expected_room_codes.issubset(actual_room_codes))
@@ -68,6 +69,8 @@ class TestSchoolPlatform(unittest.TestCase):
                 self.assertEqual(topic["tasks_count"], 23)
             elif topic["room_code"] == "math-6-fractions-sr1":
                 self.assertEqual(topic["tasks_count"], 25)
+            elif topic["room_code"] == "math-6-fractions-prop":
+                self.assertEqual(topic["tasks_count"], 30)
             else:
                 self.assertEqual(topic["tasks_count"], 20)
 
@@ -1620,6 +1623,94 @@ class TestSchoolPlatform(unittest.TestCase):
         student_entry = next((s for s in dash_data["students"] if s["user_id"] == user_id), None)
         self.assertIsNotNone(student_entry)
         self.assertEqual(student_entry["solved_count"], 20)
+
+    def test_24_math_6class_fractions_fundamental_property_cabinet(self):
+        # 1. Verify Hierarchy API has Grade 6 -> Math -> Fractions Fundamental Property topic
+        hierarchy = self.client.get("/api/hierarchy")
+        self.assertEqual(hierarchy.status_code, 200)
+        grade6 = next((g for g in hierarchy.json()["grades"] if g["slug"] == "grade-6"), None)
+        self.assertIsNotNone(grade6)
+
+        math_subj = next((s for s in grade6["subjects"] if s["slug"] == "math"), None)
+        self.assertIsNotNone(math_subj)
+        topic = next((t for t in math_subj["topics"] if t["room_code"] == "math-6-fractions-prop"), None)
+        self.assertIsNotNone(topic)
+        self.assertEqual(topic["tasks_count"], 30)
+        self.assertIn("Основна властивість дробу", topic["name"])
+
+        # 2. Verify HTML Room page
+        room_page = self.client.get("/room/math-6-fractions-prop")
+        self.assertEqual(room_page.status_code, 200)
+
+        # 3. Verify Student can fetch and answer all 30 tasks
+        device_id = f"test-dev-{uuid.uuid4()}"
+        auth_resp = self.client.post("/api/auth/student-session", json={
+            "name": "Учень 6 класу (Основна властивість дробу)",
+            "device_id": device_id,
+            "grade_level": 6,
+            "class_letter": "А"
+        })
+        self.assertEqual(auth_resp.status_code, 200)
+        user_id = auth_resp.json()["user_id"]
+
+        tasks_resp = self.client.get(f"/api/tasks/topic/math-6-fractions-prop?user_id={user_id}")
+        self.assertEqual(tasks_resp.status_code, 200)
+        tasks = tasks_resp.json()["tasks"]
+        self.assertEqual(len(tasks), 30)
+
+        expected_answers = [
+            # 1-10: Whole number as fraction
+            "7",   # 1. 1 = ?/7
+            "15",  # 2. 1 = 15/?
+            "12",  # 3. 3 = ?/4
+            "30",  # 4. 5 = ?/6
+            "5",   # 5. 2 = 10/?
+            "20",  # 6. 4 = ?/5
+            "7",   # 7. 6 = 42/?
+            "21",  # 8. 7 = ?/3
+            "4",   # 9. 8 = 32/?
+            "72",  # 10. 9 = ?/8
+            # 11-20: Apply fundamental property (multiplication / division)
+            "8",   # 11. 2/3 = ?/12
+            "25",  # 12. 3/5 = 15/?
+            "25",  # 13. 5/7 = ?/35
+            "54",  # 14. 4/9 = 24/?
+            "35",  # 15. 7/8 = ?/40
+            "3",   # 16. 18/24 = ?/4
+            "3",   # 17. 15/45 = 1/?
+            "5",   # 18. 28/35 = 4/?
+            "3",   # 19. 36/48 = ?/4
+            "6",   # 20. 42/70 = ?/10
+            # 21-30: Convert fraction to decimal (tested with dots and commas)
+            "0.5",    # 21. 1/2
+            "0.25",   # 22. 1/4
+            "0,75",   # 23. 3/4 (comma test)
+            "0.2",    # 24. 1/5
+            "0,8",    # 25. 4/5 (comma test)
+            "0.125",  # 26. 1/8
+            "0.375",  # 27. 3/8
+            "0.35",   # 28. 7/20
+            "0,36",   # 29. 9/25 (comma test)
+            "0.26"    # 30. 13/50
+        ]
+
+        for idx, task in enumerate(tasks):
+            sub_resp = self.client.post("/api/tasks/submit", json={
+                "user_id": user_id,
+                "task_id": task["id"],
+                "submitted_answer": expected_answers[idx],
+                "room_code": "math-6-fractions-prop"
+            })
+            self.assertEqual(sub_resp.status_code, 200)
+            self.assertTrue(sub_resp.json()["is_correct"], f"Task {idx+1} failed with {expected_answers[idx]}: {sub_resp.json()}")
+
+        # 4. Verify teacher dashboard reflects completed tasks
+        dash_resp = self.client.get("/api/teacher/rooms/math-6-fractions-prop/dashboard")
+        self.assertEqual(dash_resp.status_code, 200)
+        dash_data = dash_resp.json()
+        student_entry = next((s for s in dash_data["students"] if s["user_id"] == user_id), None)
+        self.assertIsNotNone(student_entry)
+        self.assertEqual(student_entry["solved_count"], 30)
 
 if __name__ == "__main__":
     unittest.main()
